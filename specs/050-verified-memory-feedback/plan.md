@@ -243,6 +243,14 @@ governance violations never fall back. Dashboard exports use an application-owne
 signer, explicit consent/preview/review/confirmation and recipient encryption;
 no private key enters an HTTP request or browser state.
 
+Source cleanup resolves typed forward protocol links and defining-record
+ownership rather than recursively treating raw tool payload IDs as authority.
+Document, canonical-source, outcome, artifact and receipt namespaces are distinct.
+Cached/copy payloads cannot seed backward deletion of their referenced originals.
+Active or qualified dependent policy must be explicitly revoked before purge;
+deleting a source cannot silently remove its guard. Opaque copies without protocol
+lineage require their own evidence retention/deletion and are not claimed erased.
+
 Tests use real temporary AtMem stores and synthetic principals; mocks supplement, never
 replace, store and installed-host journeys. Include auth/injection, matched invocation,
 unknown/disputed evidence, retries, TOCTOU, wrapper bypass, rule conflicts, outage,

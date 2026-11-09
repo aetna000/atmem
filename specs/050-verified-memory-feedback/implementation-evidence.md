@@ -450,3 +450,26 @@ the limit, proving the reply contains no omitted private payload and the origina
 outcome remains exact. The prior MCP/CLI/concurrent-client selection passed
 **9 tests in 54.67 seconds**; the final malformed-ID/escaping changes need their
 fresh verification. Native/default MCP and frozen DolphinBench paths are unchanged.
+
+At source `61b64d5`, both the feature matrix (`42629118768`, **12/12**) and main
+CI (`42629118586`, **48 jobs**) completed successfully. The rebuilt development
+wheel also exercised actual encrypted RAG creation and subprocess MCP
+search/inspection/revocation from outside the checkout. Its SHA-256 is
+`30e62180542a47278fc62a0270c7f01cf0472b25ce58c5dcc84171f81b1f2d16`.
+
+Subsequent deletion review found that the previous generic ID walk could mistake
+business IDs in raw tool results for AtMem references and follow copied payload
+identities backward. Source cleanup now uses typed protocol namespaces and
+defining-record ownership, ignoring opaque tool arguments/results/readback bodies.
+Real-store tests preserve unrelated outcomes whose IDs collide with a document
+source or are quoted in a dependent result, and preserve an active canonical rule
+whose source ID equals a distinct RAG source ID. Purging active/qualified policy
+dependencies now requires explicit revocation first, so deleting its source
+cannot silently remove enforcement. Unlinked raw-text copies remain governed by
+their own evidence retention; complete semantic forgetting is not claimed.
+The recovery/export/dispatcher/journey selection passed **30 tests in 211.43
+seconds** during this hardening, and the three new cases passed **3 tests in
+26.06 seconds**; counts overlap. Final source verification and CI remain required.
+
+The final recovery/journey selection on the unchanged cleanup source passed
+**10 tests in 56.92 seconds**, including all three new lineage/revocation cases.

@@ -287,7 +287,15 @@ Owner SDK `FeedbackRecovery.preview_forget` / `forget` requires exact preview
 confirmation and privileged deletion authority. It removes registered scoped
 source-dependent feedback payloads, retains content-free revocation/idempotency
 anchors, and checks canonical deletion completion. RAG re-registration requires
-a new generation. `reconcile_after_restore` disables restored grants, approvals,
+a new generation. Cleanup follows typed protocol links: a document source ID is
+not a canonical-memory ID or an outcome ID, and a cached/copied response does not
+own the identities it quotes. Raw tool arguments, results and readback bodies
+cannot authorize deletion through embedded IDs. Unlinked copies of text remain
+subject to their separate evidence retention/deletion; this is not semantic
+erasure of every matching string. Active/qualified dependent rules or profiles
+must first be explicitly revoked; otherwise preview/forget returns
+`dependent_policy_requires_revocation` without removing the source or silently
+turning off a guard. `reconcile_after_restore` disables restored grants, approvals,
 export consents and RAG sources, and quarantines active/qualified behavior until
 fresh qualification. The supported Home preflight/adoption workflow now changes
 a content-free machine binding: feedback refuses the read-only restore and then

@@ -182,3 +182,86 @@ def test_corrupt_or_removed_home_restore_binding_fails_closed(tmp_path):
     mode.unlink()
     with pytest.raises(FeedbackError, match="restore_reconciliation_required"):
         f.feedback.capabilities(f.session)
+
+
+def test_source_cleanup_uses_typed_forward_links_not_colliding_business_ids_or_copied_results(tmp_path):
+    from dataclasses import replace
+    import pytest
+    from atmem.feedback.recovery import FeedbackRecovery
+    from atmem.feedback.store import FeedbackError
+    from atmem.knowledge.rag.contracts import RagQuery
+    from test_feedback_actions import actions_fixture
+    f, original = actions_fixture(tmp_path)
+    f.feedback.grant_agent(f.owner['token'], f.scope, principal_id=f.user['principal_id'],
+        operations=('read','report','search'), expires_at=1_700_010_000)
+    receipt=f.rag.search(f.session,RagQuery('law','deadline'),idempotency_key='linked-search')
+    business=replace(original.observations[1],result={'business_record':{'source_id':'law'}})
+    unrelated=replace(original,outcome_id='unrelated',required=(original.required[1],),observations=(business,))
+    collision=replace(original,outcome_id='law')
+    before={}
+    for record in (unrelated,collision):
+        before[record.outcome_id]=f.feedback.report_outcome(f.session,record,idempotency_key=record.outcome_id)
+    linked_observation=replace(original.observations[1],evidence_id=receipt['receipt_id'],
+        result={'copied_result':{'outcome_id':'unrelated'}})
+    linked=replace(original,outcome_id='linked',required=(original.required[1],),observations=(linked_observation,))
+    f.feedback.report_outcome(f.session,linked,idempotency_key='linked')
+    recovery=FeedbackRecovery(f.feedback)
+    preview=recovery.preview_forget(f.owner['token'],f.scope,source_id='law',source_kind='rag')
+    assert preview['kinds']['outcome']==1
+    recovery.forget(f.owner['token'],f.scope,source_id='law',source_kind='rag',
+        preview_sha256=preview['preview_sha256'],confirm_sha256=preview['preview_sha256'])
+    for key,record in before.items():
+        assert f.feedback.outcome(f.session,key)==record
+    with pytest.raises(FeedbackError,match='denied'):
+        f.feedback.outcome(f.session,'linked')
+    with f.feedback.store.transaction(f.scope) as tx:
+        assert tx.list('rag_receipt')==[] and tx.list('rag_document')==[]
+
+
+def test_forgetting_an_active_policy_source_requires_explicit_revocation_first(tmp_path):
+    import pytest
+    from atmem.feedback.recovery import FeedbackRecovery
+    from atmem.feedback.store import FeedbackError
+    from feedback_lifecycle_fixtures import reviewed_shadow, seed_trusted_test_receipt, VERSIONS
+    f,memory,rule,lifecycle=reviewed_shadow(tmp_path)
+    try:
+        key=seed_trusted_test_receipt(f,rule)
+        lifecycle.transition(f.owner['token'],f.scope,artifact_id='rule',state='active',expected_generation=1,
+                             qualification_id=key,versions=VERSIONS)
+        recovery=FeedbackRecovery(f.feedback)
+        with pytest.raises(FeedbackError,match='dependent_policy_requires_revocation'):
+            recovery.preview_forget(f.owner['token'],f.scope,source_id=rule.sources[0].source_id)
+        assert memory.store.get_record('alice',rule.sources[0].source_id)['status']=='active'
+        lifecycle.transition(f.owner['token'],f.scope,artifact_id='rule',state='revoked',expected_generation=2)
+        preview=recovery.preview_forget(f.owner['token'],f.scope,source_id=rule.sources[0].source_id)
+        result=recovery.forget(f.owner['token'],f.scope,source_id=rule.sources[0].source_id,
+            preview_sha256=preview['preview_sha256'],confirm_sha256=preview['preview_sha256'])
+        assert result['canonical_commit']=='verified'
+    finally:
+        memory.close()
+
+
+def test_rag_source_and_canonical_memory_with_same_id_have_distinct_lineage(tmp_path):
+    from dataclasses import replace
+    from atmem.feedback.recovery import FeedbackRecovery
+    from feedback_lifecycle_fixtures import reviewed_shadow, seed_trusted_test_receipt, VERSIONS
+    from rag_fixtures import hit
+    f,memory,rule,lifecycle=reviewed_shadow(tmp_path)
+    try:
+        key=seed_trusted_test_receipt(f,rule)
+        lifecycle.transition(f.owner['token'],f.scope,artifact_id='rule',state='active',expected_generation=1,
+                             qualification_id=key,versions=VERSIONS)
+        source=replace(f.source,source_id=rule.sources[0].source_id,collection_id='separate-document-collection')
+        f.rag.register(f.owner['token'],source,f.provider)
+        f.provider.put_documents(f.owner['token'],source,(hit(source),))
+        recovery=FeedbackRecovery(f.feedback)
+        preview=recovery.preview_forget(f.owner['token'],f.scope,source_id=source.source_id,source_kind='rag')
+        assert 'rule_proposal' not in preview['kinds'] and 'rule_lifecycle' not in preview['kinds']
+        recovery.forget(f.owner['token'],f.scope,source_id=source.source_id,source_kind='rag',
+            preview_sha256=preview['preview_sha256'],confirm_sha256=preview['preview_sha256'])
+        assert memory.store.get_record('alice',source.source_id)['status']=='active'
+        with f.feedback.store.transaction(f.scope) as tx:
+            assert tx.get('rule_lifecycle','rule')['state']=='active'
+            assert tx.get('rule_proposal','rule')['candidate_sha256']==rule.content_digest
+    finally:
+        memory.close()

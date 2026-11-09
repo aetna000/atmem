@@ -81,3 +81,7 @@ system. No new score is available for Spec 050.
   operations refuse copied authority until explicit owner reconciliation and
   requalification; native recall and historical evidence inspection are
   unchanged. Direct database/file-copy recovery remains an operator procedure.
+- Opt-in registered-copy cleanup now follows typed protocol lineage and refuses
+  to purge active/qualified policy dependencies before explicit revocation. This
+  changes only the new owner SDK's cleanup behavior and preserves unrelated data
+  and existing guards; it changes no native recall or frozen benchmark scoring.

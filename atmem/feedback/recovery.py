@@ -15,8 +15,6 @@ from atmem.feedback.store import FeedbackError, snapshot
 
 CONTROL_KINDS = frozenset({'audit','agent_grant','evaluation_budget','proxy_handler','proxy_write_hold','verifier','source_revocation','restore_binding'})
 AUTH_FIELDS = frozenset({'scope','actor_id','principal_id','tenant_id','subject_id','agent_id','workspace_id','verifier_id','recipient_id'})
-IDENTITIES = frozenset({'receipt_id','evidence_id','outcome_id','rule_id','profile_id','activation_id','consent_id','export_id',
-                        'candidate_sha256','outcome_sha256','artifact_sha256','manifest_sha256','preview_sha256'})
 
 
 def revocation_key(source_id, kind='memory'):
@@ -28,27 +26,70 @@ def ensure_sources_not_revoked(tx, sources):
         raise FeedbackError('source_revoked')
 
 
-def _references(value, field=''):
+def _references(value, field='', *, source_domain='memory_source', artifact_domain='artifact'):
+    """Read typed protocol links, never instructions/IDs inside raw evidence.
+
+    A business tool may legitimately return ``source_id`` or ``outcome_id``.
+    Those payload fields are not AtMem authority and cannot drive deletion.
+    """
     if field in AUTH_FIELDS:return set()
     if type(value) is dict:
+        form=value.get('format','')
+        if type(form) is str and form.startswith('atmem-rag-'):
+            source_domain='rag_source'
+        elif form=='atmem-feedback-source-revision-v1':
+            source_domain='memory_source'
+        if value.get('kind') in ('rule','profile'):
+            artifact_domain=value['kind']
+        elif form=='atmem-feedback-rule-candidate-v1':artifact_domain='rule'
+        elif form=='atmem-feedback-profile-candidate-v1':artifact_domain='profile'
+        observation=form=='atmem-feedback-action-observation-v1'
+        execution='invocation' in value and 'receipt_id' in value
         result=set()
-        for key,item in value.items():result.update(_references(item,key))
+        for key,item in value.items():
+            if key in {'raw','arguments','evidence','encrypted_bundle','reported_result'}:
+                continue
+            if key=='result' and (observation or execution):
+                continue
+            result.update(_references(item,key,source_domain=source_domain,artifact_domain=artifact_domain))
         return result
     if type(value) is list:
-        return set().union(*(_references(item,field) for item in value)) if value else set()
-    if type(value) is str and (field.endswith('_id') or field.endswith('_ids') or field.endswith('_sha256') or field=='policy'):
-        return {value}
-    return set()
-
-
-def _identities(value):
-    if type(value) is dict:
-        result={item for key,item in value.items() if key in IDENTITIES and type(item) is str}
-        for key,item in value.items():
-            if key not in AUTH_FIELDS:result.update(_identities(item))
+        result=set()
+        for item in value:result.update(_references(item,field,source_domain=source_domain,artifact_domain=artifact_domain))
         return result
-    if type(value) is list:return set().union(*(_identities(item) for item in value)) if value else set()
+    domains={'source_id':source_domain,'record_id':'memory_source','record_ids':'memory_source',
+             'receipt_id':'receipt','evidence_id':'receipt','evidence_ids':'receipt','context_receipt_id':'receipt',
+             'rule_id':'rule','rule_ids':'rule','policy':'rule','profile_id':'profile','profile_ids':'profile',
+             'artifact_id':artifact_domain,'outcome_id':'outcome','outcome_ids':'outcome','predecessor_id':'outcome',
+             'outcome_sha256':'outcome_digest','candidate_sha256':'artifact_digest','artifact_sha256':'artifact_digest',
+             'manifest_sha256':'manifest_digest','preview_sha256':'preview_digest',
+             'activation_id':'receipt','consent_id':'consent','export_id':'export'}
+    if type(value) is str and field in domains:
+        return {(domains[field],value)}
     return set()
+
+
+def _key_identity(row):
+    kind=row['kind']
+    domain={'rag_source':'rag_source','outcome':'outcome','outcome_revision':'outcome_digest',
+            'evaluation_manifest':'manifest_digest','export_consent':'consent','example_export':'export',
+            'rule_proposal':'rule','rule_lifecycle':'rule','profile_proposal':'profile','profile_lifecycle':'profile'}.get(kind)
+    if kind in {'context_evidence','rag_receipt','readback_evidence','verification','proxy_execution',
+                'qualification','activation','verification_attempt','rag_attempt','reported_usage'}:
+        domain='receipt'
+    return (domain or 'row:'+kind,row['key'])
+
+
+def _owned_identities(row):
+    """Only a defining record owns an identity; cached/copied results do not."""
+    result={_key_identity(row)}
+    if row['kind'] in ('rule_proposal','profile_proposal'):
+        digest=row['value'].get('candidate_sha256')
+        if type(digest) is str:result.add(('artifact_digest',digest))
+    if row['kind']=='outcome_revision':
+        outcome_id=row['value'].get('outcome',{}).get('outcome_id')
+        if type(outcome_id) is str:result.add(('outcome',outcome_id))
+    return result
 
 
 class FeedbackRecovery:
@@ -67,18 +108,26 @@ class FeedbackRecovery:
             source=tx.get('rag_source',source_id)
             if source is None:raise FeedbackError('source_unavailable')
         records=list(tx.store.documents(partition_id=tx.scope.partition))
-        seeds={source_id}
+        seeds={('memory_source' if source_kind=='memory' else 'rag_source',source_id)}
         selected={}
         changed=True
         while changed:
             changed=False
             for row in records:
                 if row['kind'] in CONTROL_KINDS or row['object_id'] in selected:continue
-                if row['key'] in seeds or _references(row['value']) & seeds:
+                references=_references(row['value'],source_domain='rag_source' if row['kind'].startswith('rag_') else 'memory_source',
+                                       artifact_domain='rule' if row['kind'].startswith('rule_') else 'profile' if row['kind'].startswith('profile_') else 'artifact')
+                if _key_identity(row) in seeds or references & seeds:
                     selected[row['object_id']]=row
-                    seeds.add(row['key'])
-                    seeds.update(_identities(row['value']))
+                    seeds.update(_owned_identities(row))
                     changed=True
+        for row in selected.values():
+            if row['kind'] in ('rule_lifecycle','profile_lifecycle'):
+                current=tx.get(row['kind'],row['key'])
+                if current and (current['state'] in ('active','qualified') or current.get('block_covered')):
+                    # Purging the policy must never turn a covered denial into
+                    # an unconfigured allow. Withdrawal is a separate owner act.
+                    raise FeedbackError('dependent_policy_requires_revocation')
         counts={}
         for row in selected.values():counts[row['kind']]=counts.get(row['kind'],0)+1
         inflight=[row['key'] for row in selected.values() if row['kind']=='proxy_execution' and row['value'].get('status')=='uncertain']
