@@ -23,8 +23,16 @@ from atmem.feedback.service import FeedbackService
 from atmem.feedback.store import FeedbackError
 
 ARMS = ("none", "original", "pilot")
-LIMITS = {"calls": 400, "tokens": 1_000_000, "usd": 1.5,
-          "seconds": 2700, "bytes": 24 * 1024 * 1024}
+# Protocol v2 restores the public upstream task semantics, without revealing the
+# hidden table-to-category mapping. See CL-Bench SOURCE_SHA/prompts.py in Spec052.
+TASK_FRAMING = ("The database contains three separate product datasets covering office products, "
+    "electronics, and musical instruments. Each dataset has its own set of tables. "
+    "Explore the schema to determine which tables belong to each product category.")
+COMPARISON_SYSTEM = SYSTEM + "\n" + TASK_FRAMING
+# Deduct the entire failed v1 attempt:37calls/83643tokens/USD0.00631136/2012678bytes.
+# Both attempts together remain inside the original400call/1Mtoken/USD1.5 ceiling.
+LIMITS = {"calls": 363, "tokens": 916357, "usd": 1.49368864,
+          "seconds": 2400, "bytes": 24 * 1024 * 1024 - 2012678}
 
 
 class Ledger:
@@ -126,7 +134,7 @@ class Ledger:
             ids = {t["case_id"] + ":" + arm for t in rs}
             cs = [c for c in calls if c["trial"] in ids]
             arms[arm] = {"correct": sum(r["correct"] for r in rs), "observed": len(rs),
-                "scheduled": 15, "not_observed": 15-len(rs),
+                "scheduled": len(row["manifest"]["cases"]), "not_observed": len(row["manifest"]["cases"])-len(rs),
                 "upstream_correct": sum(r["upstream_correct"] for r in rs), "calls": len(cs),
                 "tokens": sum(c["result"]["prompt_tokens"] + c["result"]["completion_tokens"] if c["state"] == "complete" else c["input_bound"] + c["output_bound"] for c in cs),
                 "usd": sum(c["result"]["usd"] if c["state"] == "complete" else c["reserved_usd"] for c in cs),
@@ -180,7 +188,7 @@ def fresh_cases(data):
             raise ValueError("corpus changed")
     cases = []
     for q in json.loads((data / "questions_post_drift.json").read_text()):
-        if not 106 <= q["question_id"] <= 120:
+        if not 109 <= q["question_id"] <= 120:
             continue
         target = {"answer": q["answer"], "answer_type": q["answer_type"],
                   "tolerance": q.get("tolerance", 0), "oracle_verified": True}
@@ -193,13 +201,13 @@ def fresh_cases(data):
             raise ValueError("fresh-case SQL oracle mismatch")
         cases.append({"id": str(q["question_id"]), "public": {"question": q["question"],
             "database": "products_drifted.db", "drift_notice": True}, "target": target})
-    if [c["id"] for c in cases] != list(map(str, range(106, 121))):
+    if [c["id"] for c in cases] != list(map(str, range(109, 121))):
         raise ValueError("exact fresh holdout required")
     return cases
 
 
 def execute(ledger, provider, data, case, arm, context, load):
-    messages = [{"role": "system", "content": SYSTEM + ("\nMemory-use strategy (advisory): " + load if load else "")},
+    messages = [{"role": "system", "content": COMPARISON_SYSTEM + ("\nMemory-use strategy (advisory): " + load if load else "")},
         {"role": "user", "content": canonical_json(case["public"]) +
             ("\nAtMem retrieved training evidence (fallible):\n" + context if context else "")}]
     observations, answer = [], None
@@ -213,7 +221,7 @@ def execute(ledger, provider, data, case, arm, context, load):
             break
         if action["action"] != "QUERY" or len(observations) >= 15:
             break
-        result = read_only_query(data / case["public"]["database"], action["content"])
+        result = read_only_query(data / case["public"]["database"], action["content"], seconds=10)
         observations.append({"query": action["content"], "result": result})
         messages.append({"role": "user", "content": canonical_json({"observation": result,
             "queries_used": len(observations), "queries_remaining": 15-len(observations)})})
@@ -246,10 +254,11 @@ def run(args):
         result = worker(python, script, path / "home", request)
         identities[arm] = result
         memories[arm] = (python, path, version)
-    manifest = {"format": "atmem-matched-comparison-v1", "source_sha": args.source_sha,
+    manifest = {"format": "atmem-matched-comparison-v1", "protocol_revision": 2, "source_sha": args.source_sha,
         "runner_sha256": file_digest(__file__), "worker_sha256": file_digest(script),
         "agent_and_grader_sha256": file_digest(source / "atmem/benchmark/memory_adaptation.py"),
-        "corpus": FILES, "settings": SETTINGS, "system_sha256": fingerprint(SYSTEM),
+        "corpus": FILES, "settings": SETTINGS, "system_sha256": fingerprint(COMPARISON_SYSTEM),
+        "task_framing": TASK_FRAMING, "agent_query_seconds": 10,
         "history_sha256": fingerprint(history), "revised_policy_sha256": fingerprint(revised),
         "revised_notes_sha256": fingerprint(notes), "installed_packages": identities,
         "cases": [{"id": c["id"], "input_sha256": fingerprint(c["public"]), "target_sha256": fingerprint(c["target"])} for c in cases],

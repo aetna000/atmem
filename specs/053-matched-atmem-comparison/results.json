@@ -1,0 +1,159 @@
+{
+  "format": "atmem-matched-comparison-v1",
+  "status": "stopped_no_capable_baseline_first_three",
+  "arms": {
+    "none": {
+      "correct": 0,
+      "observed": 3,
+      "scheduled": 15,
+      "not_observed": 12,
+      "upstream_correct": 0,
+      "calls": 14,
+      "tokens": 17655,
+      "usd": 0.001387075,
+      "p50_seconds": 18.891205072402954,
+      "p95_seconds": 20.819777011871338
+    },
+    "original": {
+      "correct": 0,
+      "observed": 3,
+      "scheduled": 15,
+      "not_observed": 12,
+      "upstream_correct": 0,
+      "calls": 12,
+      "tokens": 35300,
+      "usd": 0.002566075,
+      "p50_seconds": 14.73160195350647,
+      "p95_seconds": 31.76235008239746
+    },
+    "pilot": {
+      "correct": 0,
+      "observed": 3,
+      "scheduled": 15,
+      "not_observed": 12,
+      "upstream_correct": 0,
+      "calls": 11,
+      "tokens": 30688,
+      "usd": 0.00235821,
+      "p50_seconds": 18.220729112625122,
+      "p95_seconds": 18.847880125045776
+    }
+  },
+  "resources": {
+    "calls": 37,
+    "tokens": 83643,
+    "usd": 0.006311359999999999,
+    "bytes": 2012678
+  },
+  "seconds": 162.35353803634644,
+  "unknown_calls": 0,
+  "trials": [
+    {
+      "case_id": "106",
+      "arm": "none",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 3,
+      "seconds": 14.903661012649536,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "106",
+      "arm": "original",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 5,
+      "seconds": 31.76235008239746,
+      "context_bytes": 5981,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "106",
+      "arm": "pilot",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 3,
+      "seconds": 18.847880125045776,
+      "context_bytes": 6109,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "107",
+      "arm": "none",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 4,
+      "seconds": 20.819777011871338,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "107",
+      "arm": "original",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 1,
+      "seconds": 11.653321981430054,
+      "context_bytes": 7250,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "107",
+      "arm": "pilot",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 3,
+      "seconds": 18.220729112625122,
+      "context_bytes": 6678,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "108",
+      "arm": "none",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 4,
+      "seconds": 18.891205072402954,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "108",
+      "arm": "original",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 3,
+      "seconds": 14.73160195350647,
+      "context_bytes": 5760,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "108",
+      "arm": "pilot",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 2,
+      "seconds": 9.70768427848816,
+      "context_bytes": 5887,
+      "context_status": "sufficient"
+    }
+  ],
+  "independent_database_lineages": 1,
+  "claim": "drift_only_diagnostic; no demonstrated learning",
+  "manifest_sha256": "3f6a4b50f88d2b6c7c45b3a53b7f41dcbe57ce382f7652c99375b30282c40921",
+  "actual_models": {
+    "openai/gpt-6-luna": 37
+  },
+  "actual_providers": {
+    "OpenAI": 37
+  },
+  "sql_error_observations": {
+    "none": 0,
+    "original": 1,
+    "pilot": 0
+  },
+  "filesystem_bytes": 5308832,
+  "protocol_qualification": "not_qualified: adapted prompt omitted separate-dataset framing; all-zero feasibility stop",
+  "full_comparison_completed": false
+}

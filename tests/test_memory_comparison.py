@@ -10,7 +10,7 @@ from atmem.feedback.store import FeedbackError
 
 
 def test_paid_failure_stays_durably_reserved_and_encrypted(tmp_path):
-    ledger = Ledger(tmp_path, {"protocol": "test"})
+    ledger = Ledger(tmp_path, {"protocol": "test", "cases": [{"id": "106"}]})
     payload = {"model": "fixed", "messages": [{"role": "user", "content": "RESERVATION_SECRET_CANARY"}], "max_tokens": 10}
     def fails(*a, **kw):
         raise RuntimeError("provider error body must not leak")
@@ -32,7 +32,7 @@ def test_paid_failure_stays_durably_reserved_and_encrypted(tmp_path):
 
 def test_expired_budget_refuses_before_provider(tmp_path):
     now = [100.0]
-    ledger = Ledger(tmp_path, {}, clock=lambda: now[0])
+    ledger = Ledger(tmp_path, {"cases": [{"id": "106"}]}, clock=lambda: now[0])
     now[0] += LIMITS["seconds"] + 1
     def forbidden(*a, **kw):
         pytest.fail("expired study reached paid provider")
@@ -62,6 +62,8 @@ def test_no_memory_input_has_no_context_and_hidden_target(tmp_path):
             assert "AtMem retrieved" not in text
             assert "hidden-target-canary" not in text
             assert "Memory-use strategy" not in text
+            assert "three separate product datasets" in text
+            assert "Each dataset has its own set of tables" in text
             return {"action": "ANSWER", "content": "7"}
     case = {"id": "106", "public": {"question": "Count records", "database": "public.db"},
             "target": {"answer": "hidden-target-canary"}}

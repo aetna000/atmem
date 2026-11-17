@@ -22,3 +22,9 @@ The fixed first-three feasibility stop prevents another unproductive campaign.
 Verify real workers locally without model calls, then reservation/leakage/version/
 context/grade guards. Freeze source commit before live inference. No release tag
 or efficacy announcement until the actual comparison and required release checks.
+
+Protocol v1 stopped after its first three cases,0/3 for every arm. Before any new
+inference, restore the original public separate-dataset framing and10-second SQL
+limit. v2 uses only109–120, with the same all-zero first-three stop. Policies,
+grader and historical memories stay frozen. Both protocol attempts share the
+original resource ceiling; v1 costs are deducted from v2. Preserve and report both.

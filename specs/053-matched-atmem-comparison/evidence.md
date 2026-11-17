@@ -37,3 +37,24 @@ bounded read-only execution returned the published answer1145 in20.94seconds.
 There was no dataset answer mismatch. All15 oracle values agree with the labels.
 The verifier-only ceiling is now60seconds, frozen before inference; agent query
 limits remain3seconds for every arm. No scoring rule or model result was changed.
+
+## Protocol v1 finished; task qualification failed
+Sourcea515c54, manifest3f6a4b50f88d2b6c7c45b3a53b7f41dcbe57ce382f7652c99375b30282c40921.
+All nine first-three outcomes were incorrect under both predeclared parsers:
+no-memory0/3, original0/3, pilot0/3. The remaining12 cases were not attempted.
+37calls/83643tokens/USD0.00631136/162.35seconds; no unknown call. Both memory
+conditions retrieved nonempty context through their actual installed packages.
+Raw content-free registration/results are retained as preregistration.json/results.json.
+
+Post-run task audit found the adapted prompt omitted upstream's explanation that
+there are three separate category datasets, each with its own tables. Agents often
+treated groups as shards and filtered main_cat; the supplied reference queries use
+one category dataset. For example case107's gold query returns514 across the g1
+dataset, while adding main_cat='Office Products' returns370, the stateless answer.
+This is a task-framing/semantic alignment issue, not a proven label defect or proof
+that retrieval is worse. SQL/label agreement alone was insufficient qualification.
+
+One protocol-only repair restores the public upstream framing and10-second SQL
+tool deadline. It does not reveal the hidden mapping, alter notes or policy, change
+the grader, or retry consumed questions. v2 uses only109–120, separately preregistered
+and subject to the same first-three all-zero stop and the remaining shared budget.

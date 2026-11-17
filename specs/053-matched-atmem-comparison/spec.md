@@ -41,3 +41,16 @@ is allowed and measured explicitly, but never counted as a memory benefit.
 SC-002: One preregistered bounded comparison finishes or reports the exact blocker;
 all failed/unknown/early-stop outcomes stay visible. Success means measured benefit
 only if observed; infrastructure and retrieval success cannot establish learning.
+
+## Protocol v2 correction (before new inference)
+The v1 attempt consumed only106–108 and stopped all-zero. Audit found that the
+adaptation omitted the upstream public prompt's separate-dataset framing and
+reduced its SQL tool timeout from10 to3seconds. Preserve v1 unchanged; it cannot
+qualify the task protocol. Restore that public framing (never reveal the hidden
+group/category mapping) and the common10-second SQL limit for all three arms.
+Use only the still-unattempted IDs109–120. Stage1 is109–111; stop if all nine outcomes
+are incorrect, otherwise finish112–120. No memory-policy, grader, model, history or
+candidate change. This is one protocol repair, not a score-driven candidate search.
+Deduct v1's entire resource use from the original shared ceiling: v2 maximum363calls,
+916357tokens/USD1.49368864/2400seconds/23153146serialized reservation bytes.
+Do not perform another live protocol/candidate rerun if this fails.
