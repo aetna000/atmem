@@ -1,5 +1,9 @@
 # Spec 053 — Actual AtMem three-arm comparison
 
+Active execution: protocol3, the independent six-task cohort pinned below.
+Protocols1/2 remain historical failed-qualification evidence. Protocol3 completed;
+all three conditions scored6/6, so no accuracy improvement or learning was established.
+
 The user identified a missing baseline in Spec 052: generic notes were never
 original AtMem. Preserve its failed results, but do not use them to compare package
 versions or to claim improved AtMem. This correction is a separate experiment.

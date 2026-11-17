@@ -1,0 +1,276 @@
+{
+  "format": "atmem-matched-comparison-v1",
+  "status": "complete",
+  "arms": {
+    "none": {
+      "correct": 6,
+      "observed": 6,
+      "scheduled": 6,
+      "not_observed": 0,
+      "upstream_correct": 6,
+      "calls": 20,
+      "tokens": 16170,
+      "usd": 0.00171108,
+      "p50_seconds": 7.995120882987976,
+      "mean_queries": 2.3333333333333335,
+      "mean_reward": 0.8444444444444444,
+      "p95_seconds": 11.731434106826782,
+      "nonempty_context": 0
+    },
+    "original": {
+      "correct": 6,
+      "observed": 6,
+      "scheduled": 6,
+      "not_observed": 0,
+      "upstream_correct": 6,
+      "calls": 18,
+      "tokens": 42873,
+      "usd": 0.002928565,
+      "p50_seconds": 8.307667970657349,
+      "mean_queries": 2.0,
+      "mean_reward": 0.8666666666666667,
+      "p95_seconds": 12.72681999206543,
+      "nonempty_context": 5
+    },
+    "pilot": {
+      "correct": 6,
+      "observed": 6,
+      "scheduled": 6,
+      "not_observed": 0,
+      "upstream_correct": 6,
+      "calls": 17,
+      "tokens": 44627,
+      "usd": 0.002873515,
+      "p50_seconds": 7.678317427635193,
+      "mean_queries": 1.8333333333333333,
+      "mean_reward": 0.8777777777777778,
+      "p95_seconds": 9.571056842803955,
+      "nonempty_context": 5
+    }
+  },
+  "resources": {
+    "calls": 55,
+    "tokens": 103670,
+    "usd": 0.007513160000000003,
+    "bytes": 2945031
+  },
+  "seconds": 152.88037514686584,
+  "unknown_calls": 0,
+  "trials": [
+    {
+      "case_id": "independent-001",
+      "arm": "none",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 2,
+      "seconds": 7.082801818847656,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "independent-001",
+      "arm": "original",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 1,
+      "seconds": 5.848384857177734,
+      "context_bytes": 6470,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "independent-001",
+      "arm": "pilot",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 1,
+      "seconds": 5.558475971221924,
+      "context_bytes": 6598,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "independent-002",
+      "arm": "none",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 2,
+      "seconds": 8.043835878372192,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "independent-002",
+      "arm": "original",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 2,
+      "seconds": 7.90579891204834,
+      "context_bytes": 6860,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "independent-002",
+      "arm": "pilot",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 2,
+      "seconds": 7.921674966812134,
+      "context_bytes": 7342,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "independent-003",
+      "arm": "none",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 2,
+      "seconds": 7.921518802642822,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "independent-003",
+      "arm": "original",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 2,
+      "seconds": 9.199589967727661,
+      "context_bytes": 7145,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "independent-003",
+      "arm": "pilot",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 2,
+      "seconds": 6.85707688331604,
+      "context_bytes": 6485,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "independent-004",
+      "arm": "none",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 2,
+      "seconds": 8.225395917892456,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "independent-004",
+      "arm": "original",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 1,
+      "seconds": 5.602725028991699,
+      "context_bytes": 6899,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "independent-004",
+      "arm": "pilot",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 2,
+      "seconds": 8.937268018722534,
+      "context_bytes": 7188,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "independent-005",
+      "arm": "none",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 4,
+      "seconds": 11.731434106826782,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "independent-005",
+      "arm": "original",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 4,
+      "seconds": 12.72681999206543,
+      "context_bytes": 0,
+      "context_status": "contradicted"
+    },
+    {
+      "case_id": "independent-005",
+      "arm": "pilot",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 2,
+      "seconds": 7.434959888458252,
+      "context_bytes": 0,
+      "context_status": "contradicted"
+    },
+    {
+      "case_id": "independent-006",
+      "arm": "none",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 2,
+      "seconds": 7.94640588760376,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "independent-006",
+      "arm": "original",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 2,
+      "seconds": 8.709537029266357,
+      "context_bytes": 7202,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "independent-006",
+      "arm": "pilot",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 2,
+      "seconds": 9.571056842803955,
+      "context_bytes": 7090,
+      "context_status": "sufficient"
+    }
+  ],
+  "independent_database_lineages": 1,
+  "claim": "drift_only_diagnostic; no demonstrated learning",
+  "manifest_sha256": "1a4e5c7cc7c8bfd5fb8ffd0ac035db97bf12da1cdcc8481213050ddb9772f919",
+  "actual_models": {
+    "openai/gpt-6-luna": 55
+  },
+  "actual_providers": {
+    "OpenAI": 55
+  },
+  "context_status_counts": {
+    "sufficient": 10,
+    "contradicted": 2
+  },
+  "filesystem_bytes": 6258229,
+  "protocol_revision": 3,
+  "source_sha": "7f5a603ae08a18cd7875963816fe142ee280ded0",
+  "all_scheduled_condition_trials_completed": true,
+  "qualified_sdk_comparison": true,
+  "production_qualification": "inconclusive",
+  "learning_demonstrated": false,
+  "cohort_kind": "independently authored six-task public-DB diagnostic",
+  "limitations": [
+    "single database lineage",
+    "six cases; all arms at accuracy ceiling",
+    "frozen history; no online learning or native-host benchmark",
+    "original2.3.14 base context-fast SDK profile",
+    "candidate forced frozen rejected policy; not selected/activated",
+    "APIcost excludes Codex/Astra implementation/research"
+  ],
+  "combined_all_comparison_attempts_resources": {
+    "calls": 277,
+    "tokens": 686410,
+    "usd": 0.042929315,
+    "bytes": 15315638
+  }
+}

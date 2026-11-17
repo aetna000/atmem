@@ -107,3 +107,42 @@ is deducted cumulatively, not reset. No model, policy, grader or package change.
 Provider USD/token figures refer only to experimental API calls. They exclude
 Codex/Astra development/research usage and setup time. No model-weight training,
 production qualification, host activation or release publication is claimed.
+
+## Final independent six-task comparison
+Source7f5a603; exact manifest SHA256`1a4e5c7cc7c8bfd5fb8ffd0ac035db97bf12da1cdcc8481213050ddb9772f919`.
+Full registration and all condition outcomes are in preregistration-independent.json
+and results-independent.json. Cohort SHA remains9b92d8f3923db01d32aa1b192f133518acba7c1aa7149595b6e5d79809a02d76.
+
+| Condition | Strict/upstream correct | Model calls | Mean SQL queries | Tokens | API USD |
+|---|---:|---:|---:|---:|---:|
+| No memory | 6/6 |20|2.333|16170|0.00171108|
+| Installed original AtMem2.3.14 |6/6|18|2.000|42873|0.002928565|
+| Installed candidate2.3.15b2 + frozen experimental policy |6/6|17|1.833|44627|0.002873515|
+
+All18scheduled trials and55calls completed; no unknown, malformed output or recovery.
+All actual responses identify OpenAI/openai/gpt-6-luna. Both memory conditions
+retrieved nonempty context on5/6tasks; each withheld contradictory context once.
+The actual default deterministic context-fast V3 SDK path was used, with frozen
+history, no online writes, base package profile and no native-host/agent-driven
+memory-tool comparison. Core memory.py bytes match across the installed versions.
+
+Independent audit of all55captured requests found exactly one current_task matching
+the sealed cohort, separate from quoted history. Actor input rejects target/oracle
+fields. The full independent cohort, exact source histories, package generations,
+context packages, tool results, model exchanges and grades remain encrypted in the
+new owner Home. Original DB/question hashes and frozen runtime digests still match.
+
+Elapsed152.88seconds after setup;103670tokens/USD0.00751316; serialized reservations
+2945031bytes; Home files6258229bytes after owner verification. Across all comparison
+attempts:277calls/686410tokens/USD0.042929315/15315638reserved bytes, within the shared
+400call/1Mtoken/USD1.5/24MiB bounds. Setup and development/research usage are excluded.
+Test-only worker smoke stores were removed (3859685bytes); evidence/DBs are preserved.
+
+Interpretation: this is a valid small matched SDK diagnostic, **not demonstrated
+learning or an accuracy improvement**. Every condition reached the six-task ceiling.
+The pilot used one fewer call than original but more tokens; both memory conditions
+used more tokens and API spend than no-memory. No superiority, generalization,
+production qualification or causal improvement from the prompt fix is established.
+The cohorts differ; do not compare0/12 with6/6 as a quality delta. No further campaign,
+candidate search, paid rerun or activation followed. The user's broader requested
+reliable improvement remains unproven; this source must not be marketed as that fix.

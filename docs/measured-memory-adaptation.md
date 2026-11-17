@@ -42,6 +42,24 @@ measure an AtMem package against an older AtMem package. A separate Spec053
 comparison exercises installed 2.3.14 and the candidate's actual encrypted
 Context Engine V3 path, alongside no memory; its results must be reported separately.
 
+That small matched SDK check used six independently authored public database tasks:
+no memory: 6/6; installed AtMem 2.3.14: 6/6; candidate 2.3.15b2 with the frozen
+experimental policy: 6/6. All 18 trials completed. The pilot made 17 model calls
+versus 18 for original and 20 without memory, but both memory conditions used more tokens and API spend than
+the stateless control. This establishes no accuracy gain or learning: all conditions
+hit the six-task ceiling in one database lineage. It is not a native-host benchmark.
+Earlier follow-up scores were invalidated as product comparisons after task-framing
+and historical-question displacement defects were found in the research adapter;
+their raw results and costs remain in Spec 053. Consumed questions were not rescored.
+
+The three-arm comparison is a source-only research harness, separate from the
+installed `atmem-memory-study` command. It requires isolated installed original and
+candidate environments, pinned public databases, the owner's encrypted historical
+study Home, and a sealed independently authored cohort; no dataset/target bundle is
+distributed. Exact settings, source and cohort hashes, per-trial results, corrections
+and limits are retained under `specs/053-matched-atmem-comparison`. It cannot activate
+a policy or certify production qualification.
+
 The study freezes corpus hashes, all case memberships, grader/implementation
 identities, runtime settings and ceilings before inference. Train IDs1–10 generate
 observations; validation IDs11–15 select between generic and one revision, requiring

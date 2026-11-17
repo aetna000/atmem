@@ -4,5 +4,5 @@
 - [x] [T002] Implement installed-package worker and verify both actual versions (FR001–003).
 - [x] [T003] Implement bounded encrypted three-arm harness with fresh case/protocol pins (FR002–005).
 - [x] [T004] Verify version/isolation/context, hidden-target and reservation boundaries before inference (SC001).
-- [ ] [T005] Freeze and execute one controlled comparison; retain honest results/resources in evidence.md (SC002).
-- [ ] [T006] Push corrected benchmark and clarify Spec052/053 scope in public documentation.
+- [x] [T005] Freeze and execute one controlled comparison; retain honest results/resources in evidence.md (SC002). Independent cohort6/6 for all arms; no demonstrated learning.
+- [x] [T006] Push corrected benchmark and clarify Spec052/053 scope in public documentation.
