@@ -203,7 +203,8 @@ jobs:
           - {os: ubuntu-latest, python-version: "3.11"}
           - {os: ubuntu-latest, python-version: "3.12"}
           - {os: ubuntu-latest, python-version: "3.13"}
-          - {os: macos-latest, python-version: "3.12"}
+          # Same ARM64 image as PR gates; keep publication on the tested pool.
+          - {os: macos-15, python-version: "3.12"}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

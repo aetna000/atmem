@@ -81,3 +81,14 @@ The existing real multiple-statement refusal test failed because Python3.10 uses
 `sqlite3.Warning` instead of later versions' `ProgrammingError`. The adapter now
 refuses either consistently. This is a post-pilot compatibility guard, not a
 changed scorer or rerun; final hosted gates are repeated on the corrected source.
+
+## Hosted macOS scheduling correction
+Required jobs on `macos-latest` (currently macOS 26 ARM64) were canceled with
+"The job was not acquired by Runner of type hosted even after multiple attempts"
+and an explicit ARM64 capacity annotation. Pin CI, feedback contracts, installed
+AtMemCode and publication to supported `macos-15` ARM64 instead. This changes the
+image/pool, not architecture or assertions; every prior OS/Python matrix cell is
+retained. The macOS feedback deadline becomes 30 minutes (matching Windows) after
+a job timed out despite passing the test step, while Linux remains 15 minutes.
+This cannot guarantee hosted capacity; new exact-commit runs must prove success
+before tagging. No model calls, pilot reruns, package behavior or scorer changes.
