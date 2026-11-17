@@ -184,7 +184,9 @@ def fresh_cases(data):
             continue
         target = {"answer": q["answer"], "answer_type": q["answer_type"],
                   "tolerance": q.get("tolerance", 0), "oracle_verified": True}
-        oracle = read_only_query(data / "products_drifted.db", q["sql"], seconds=10)
+        # The reference verifier is independent of the agent's fixed 3s tool
+        # ceiling. One supplied gold query takes ~21s on the pinned DB.
+        oracle = read_only_query(data / "products_drifted.db", q["sql"], seconds=60)
         rows = oracle.get("rows", [])
         scalar = rows[0][0] if len(rows) == 1 and len(rows[0]) == 1 else None
         if not grade_answer({"answer": scalar, "queries": 0}, target).correct:
@@ -251,7 +253,8 @@ def run(args):
         "history_sha256": fingerprint(history), "revised_policy_sha256": fingerprint(revised),
         "revised_notes_sha256": fingerprint(notes), "installed_packages": identities,
         "cases": [{"id": c["id"], "input_sha256": fingerprint(c["public"]), "target_sha256": fingerprint(c["target"])} for c in cases],
-        "arms": ARMS, "limits": LIMITS, "early_stop": "all nine first-three-case outcomes incorrect",
+        "arms": ARMS, "limits": LIMITS, "oracle_preflight_seconds_per_query": 60,
+        "early_stop": "all nine first-three-case outcomes incorrect",
         "scope": "single-lineage schema-drift diagnostic; forced rejected policy, no online learning"}
     (home / "preregistration.json").write_text(json.dumps(manifest, indent=2) + "\n")
     ledger = Ledger(home, manifest)

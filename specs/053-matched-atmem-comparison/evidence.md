@@ -30,3 +30,10 @@ All cases106–120 are previously unused post-drift questions in one shared data
 The live run has a fixed all-zero first-three feasibility stop, no policy revision,
 no repeat and no production or native-host claim. The third arm deliberately forces
 the old rejected experimental candidate for comparison; no activation is authorized.
+
+The first preflight stopped before any paid call because the supplied gold SQL for
+case109 exceeded the 10-second reference-verifier limit. An independent 60-second
+bounded read-only execution returned the published answer1145 in20.94seconds.
+There was no dataset answer mismatch. All15 oracle values agree with the labels.
+The verifier-only ceiling is now60seconds, frozen before inference; agent query
+limits remain3seconds for every arm. No scoring rule or model result was changed.
