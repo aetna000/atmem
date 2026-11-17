@@ -95,7 +95,11 @@ export function extractTypeFields(source, typeName) {
     // OpenClaw 2026.9.6 makes this context versioned. AtMem registers the
     // direct-turn (default v1) factory, whose declared branch is the base type.
     // Match that exact declaration; do not infer safety for an unknown alias.
-    if (typeName === "OpenClawPluginToolContext" && /type OpenClawPluginToolContext<Version extends 1 \| 2 = 1> = Version extends 2 \? OpenClawPluginToolContextBase & \{\s*assertInvocationCurrent: \(\) => void;\s*\} : OpenClawPluginToolContextBase;/.test(source)) {
+    // 2026.11.5 adds an optional requester-model field to the v2 branch.
+    // The default remains v1 -> the same base. Recognize only these reviewed
+    // branches, never infer fields/authority for an unknown alias or default.
+    const reviewedToolAlias = /type OpenClawPluginToolContext<Version extends 1 \| 2 = 1> = Version extends 2 \? OpenClawPluginToolContextBase & \{\s*assertInvocationCurrent: \(\) => void;\s*(?:\/\*\* Optional on older hosts and on turns without admitted requester\/session authority\. \*\/\s*runtimeContext\?: \{\s*models\?: PluginRequesterModels;\s*\};\s*)?\} : OpenClawPluginToolContextBase;/;
+    if (typeName === "OpenClawPluginToolContext" && reviewedToolAlias.test(source)) {
       return extractTypeFields(source, "OpenClawPluginToolContextBase");
     }
     return null;

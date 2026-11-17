@@ -34,3 +34,15 @@ assert.deepEqual(extractHookContexts([inheritedSource]), {
   before_prompt_build: 'PluginHookAgentContext',
 });
 console.log('hook-context parser: default-v1 alias and fail-closed changes verified');
+
+// The reviewed upstream v2-only addition must not remove default-v1 base fields.
+const requesterModels = source.replace('  assertInvocationCurrent: () => void;\n', `  assertInvocationCurrent: () => void;
+  /** Optional on older hosts and on turns without admitted requester/session authority. */
+  runtimeContext?: {
+    models?: PluginRequesterModels;
+  };
+`);
+assert.deepEqual(extractTypeFields(requesterModels, 'OpenClawPluginToolContext'), extractTypeFields(source, 'OpenClawPluginToolContext'));
+assert.equal(extractTypeFields(requesterModels.replace('= 1>', '= 2>'), 'OpenClawPluginToolContext'), null);
+assert.equal(extractTypeFields(requesterModels.replace('} : OpenClawPluginToolContextBase;', '} : UnknownContext;'), 'OpenClawPluginToolContext'), null);
+assert.equal(extractTypeFields(requesterModels.replace('models?: PluginRequesterModels;', 'models: UnknownAuthority;'), 'OpenClawPluginToolContext'), null);

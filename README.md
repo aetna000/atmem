@@ -33,7 +33,7 @@ custom agent governed long-term memory. **AtBot is installed automatically** as
 AtMem's private intelligence companion: AtBot proposes and ranks; AtMem alone
 authorizes, stores, scopes, injects, corrects, and deletes memory.
 
-Experimental [measured memory adaptation](docs/measured-memory-adaptation.md) compares one training-derived memory-policy revision with fixed-agent controls using an objective grader. It does not automatically activate policies or train model weights.
+Experimental [measured memory adaptation](docs/measured-memory-adaptation.md) compares one training-derived memory-policy revision with fixed-agent controls using an objective grader. Its first bounded pilot rejected the proposed revision and did not establish an improvement. It does not automatically activate policies or train model weights.
 
 ## Start here
 

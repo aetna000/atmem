@@ -91,7 +91,7 @@ for the pinned OpenRouter/OpenAI `openai/gpt-6-luna` route. It is not permission
 send private customer data. Endpoint availability can change; no silent model or
 provider fallback occurs. Instructions/settings cannot be changed within a study.
 
-Hard ceilings: 800 calls, 2 million tokens, USD3, 90 minutes and 32MiB conservative
+Hard ceilings: 800 calls, 2 million tokens, USD 3, 90 minutes and 32MiB conservative
 serialized evidence reservations. Unknown calls retain their worst-case token/cost
 charge. The evidence ceiling excludes encrypted container/history/filesystem
 overhead, which is measured separately. HTTP timeouts use remaining time; late
@@ -107,7 +107,7 @@ a positive result appears. There is no bulk campaign or broad search loop.
 A fresh dedicated experiment Home is mandatory; no regular Home, existing memory,
 accounts or running agent is modified. Exact requests/responses, tool calls/results,
 notes and grades use AtMem's encrypted scoped feedback ledger. This opts that fresh
-vault into the existing feedback format4. Supported older readers must refuse it;
+vault into the existing feedback format 4. Readers without feedback-format 4 support must refuse it;
 there is no in-place downgrade or new canonical-memory schema migration.
 
 The dedicated `.study-access.json` contains the study credential with owner-only
@@ -148,3 +148,17 @@ uncertainty remains inconclusive. Meta's optimized harness and weight-distillati
 scores use different conditions; its public project provides no implementation here
 for a matched reproduction. Existing production feedback qualification stays
 inconclusive regardless of this study's score.
+
+## Recorded pilot outcome
+
+The first source pilot rejected the revision. Final strict scores were7/20 without
+memory,5/20 with transcript,6/20 with generic notes and5/20 with revised notes.
+Both validation policies scored0/5, so generic was retained by the tie rule.
+The already-recorded upstream parser scores were9/20,7/20,7/20 and6/20, respectively.
+No scorer was changed after seeing final answers. The study costUSD0.07761425 for
+497 calls across all phases; separate setup/protocol costs are documented in the
+[complete evidence](../specs/052-measured-memory-adaptation/implementation-evidence.md).
+This is a negative experimental result. It does not demonstrate reliable improvement.
+Reference live validation is macOS/Python 3.12; other hosts and storage ACLs are
+not newly qualified by this pilot. Downloaded DBs stay outside the encrypted Home;
+the Home retains captured exchanges rather than an entire replayable DB snapshot.

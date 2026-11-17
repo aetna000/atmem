@@ -21,3 +21,33 @@ coverage only. The native version allowlist is unchanged.
 Snapshot SHA-256: `d998383457b848dd8112e672357e6ea464529ee0cdb0561327205e61304a0c3e`.
 The failure-only CI diagnostic never changes a gate result or commits its output;
 this snapshot was added only after reviewing the recorded shape and provenance.
+
+## OpenClaw 2026.11.5 review — 2026-11-18
+
+Published archive independently fetched and matched to registry metadata and
+[CI run 44117243652](https://github.com/aetna000/atmem/actions/runs/44117243652),
+artifact `openclaw-declaration-review-2026.11.5`:
+
+`sha512-mqPlsGLOe8NS85BfP1vWW9YVwFXchsV75QTkEbyR4csylORxts+fmfZp9+qbD7aPbXQIctyjRk+CPL91fDvxBA==`
+
+The first diagnostic omitted the tool context because a narrowly recognized
+versioned alias acquired a v2-only optional `runtimeContext.models` field. Source
+review confirmed that the default remains version1 and resolves to the same base;
+`senderIsOwner`, session identity and their optionality remain declared. The parser
+now recognizes exactly the additional reviewed branch. Negative tests still refuse
+a changed default, unknown base or unreviewed branch. This is a declaration-reader
+correction; it adds no runtime capability or permission.
+
+Compared with 2026.11.2, the agent context drops optional
+`heartbeatEventQueueSessionKey`, the tool-hook context adds optional`trigger`,
+and the default tool context adds optional`approvalReviewerDeviceIds`,
+`assertCompleteResult`, `inputProvenance`, `modelExecution`, `runId` and `sandbox`.
+The bridge does not consume the removed field or treat these additions as authority.
+Hook/context bindings are unchanged; no governed task identity appears. Missing
+identity and owner signals still fail closed. Native compatibility remains unchanged.
+
+Corrected locally extracted snapshot SHA256:
+`ac26229d5c7bfa76825eaddc54de9204eead368d972c75bb3b19b1b5cb015c37`.
+The earlier CI diagnostic's SHA256 was
+`12bb958fec110a32ae047b791735affe1404c60d0d9787500e27b7a830cb48ad`;
+it is retained as failure evidence, not silently relabelled a valid extraction.

@@ -1,0 +1,355 @@
+{
+  "format": "atmem-memory-adaptation-v1",
+  "study_id": "clbench-db-052-v1",
+  "manifest_sha256": "8ebf796ccce5c511feb421164c46e3249f2dda2f8339c165a13ebd66e699f558",
+  "selected": "generic",
+  "arms": {
+    "none": {
+      "correct": 7,
+      "scheduled": 20,
+      "observed": 20,
+      "unknown": 0,
+      "mean_reward": 0.24,
+      "model_calls": 118,
+      "tokens": 201801,
+      "usd": 0.01603324,
+      "mean_queries": 4.9,
+      "p50_seconds": 45.77919399738312,
+      "p95_seconds": 89.25110220909119,
+      "upstream_disagreements": 2,
+      "upstream_correct": 9,
+      "upstream_mean_reward": 0.3166666666666667
+    },
+    "transcript": {
+      "correct": 5,
+      "scheduled": 20,
+      "observed": 20,
+      "unknown": 0,
+      "mean_reward": 0.21333333333333332,
+      "model_calls": 72,
+      "tokens": 263145,
+      "usd": 0.015723825,
+      "mean_queries": 2.6,
+      "p50_seconds": 26.36494791507721,
+      "p95_seconds": 41.940431118011475,
+      "upstream_disagreements": 2,
+      "upstream_correct": 7,
+      "upstream_mean_reward": 0.3
+    },
+    "generic": {
+      "correct": 6,
+      "scheduled": 20,
+      "observed": 20,
+      "unknown": 0,
+      "mean_reward": 0.24333333333333335,
+      "model_calls": 80,
+      "tokens": 153643,
+      "usd": 0.01114143,
+      "mean_queries": 3.0,
+      "p50_seconds": 27.94440758228302,
+      "p95_seconds": 55.22263026237488,
+      "upstream_disagreements": 1,
+      "upstream_correct": 7,
+      "upstream_mean_reward": 0.2866666666666667
+    },
+    "revised": {
+      "correct": 5,
+      "scheduled": 20,
+      "observed": 20,
+      "unknown": 0,
+      "mean_reward": 0.17,
+      "model_calls": 105,
+      "tokens": 230869,
+      "usd": 0.01577644,
+      "mean_queries": 4.25,
+      "p50_seconds": 34.48906087875366,
+      "p95_seconds": 127.59422516822815,
+      "upstream_disagreements": 1,
+      "upstream_correct": 6,
+      "upstream_mean_reward": 0.21333333333333332
+    }
+  },
+  "selected_reward_delta": {
+    "none": 0.003333333333333355,
+    "transcript": 0.030000000000000027,
+    "revised": 0.07333333333333333
+  },
+  "paired_correctness": {
+    "estimate": 0.0,
+    "confidence_level": 0.95,
+    "episodes": 1,
+    "tasks": 20,
+    "lower": null,
+    "upper": null,
+    "status": "inconclusive",
+    "claim": "diagnostic_only"
+  },
+  "resources": {
+    "calls": 497,
+    "tokens": 1087450,
+    "usd": 0.07761425000000001,
+    "retained_bytes": 25380995
+  },
+  "elapsed_seconds": 3840.5900480747223,
+  "claim": "adapted_pilot_only",
+  "production_qualification": "inconclusive",
+  "activation": "not_authorized",
+  "strata": {
+    "original": {
+      "none": {
+        "tasks": 15,
+        "correct": 7,
+        "mean_reward": 0.32
+      },
+      "transcript": {
+        "tasks": 15,
+        "correct": 5,
+        "mean_reward": 0.28444444444444444
+      },
+      "generic": {
+        "tasks": 15,
+        "correct": 5,
+        "mean_reward": 0.28
+      },
+      "revised": {
+        "tasks": 15,
+        "correct": 5,
+        "mean_reward": 0.22666666666666668
+      }
+    },
+    "schema_drift": {
+      "none": {
+        "tasks": 5,
+        "correct": 0,
+        "mean_reward": 0.0
+      },
+      "transcript": {
+        "tasks": 5,
+        "correct": 0,
+        "mean_reward": 0.0
+      },
+      "generic": {
+        "tasks": 5,
+        "correct": 1,
+        "mean_reward": 0.13333333333333336
+      },
+      "revised": {
+        "tasks": 5,
+        "correct": 0,
+        "mean_reward": 0.0
+      }
+    }
+  },
+  "systems": {
+    "task_p50_seconds": 30.337528944015503,
+    "task_p95_seconds": 78.75040221214294,
+    "tasks_per_second": 0.025999662740504585,
+    "peak_rss_platform_units": 305868800,
+    "filesystem_bytes": 55490202,
+    "retained_budget_basis": "conservative serialized request-response reservations, excludes container/history overhead"
+  },
+  "phase_resources": {
+    "test": {
+      "calls": 375,
+      "tokens": 849458,
+      "usd": 0.05867493500000004
+    },
+    "validation": {
+      "calls": 56,
+      "tokens": 119114,
+      "usd": 0.008165225
+    },
+    "train": {
+      "calls": 63,
+      "tokens": 107616,
+      "usd": 0.008510065
+    },
+    "proposal": {
+      "calls": 3,
+      "tokens": 11262,
+      "usd": 0.002264025
+    }
+  },
+  "actual_models": {
+    "openai/gpt-6-luna": 497
+  },
+  "actual_providers": {
+    "OpenAI": 497
+  },
+  "observed_agent_failures": {},
+  "sql_error_observations_by_phase_and_arm": {
+    "train:generic": 4,
+    "test:revised": 7,
+    "test:transcript": 1,
+    "test:generic": 2,
+    "validation:revised": 0,
+    "validation:generic": 6,
+    "test:none": 4
+  },
+  "validation": [
+    {
+      "case_id": "11",
+      "split": "validation",
+      "arm": "revised",
+      "state": "complete",
+      "episode": "database-lineage",
+      "drift": false,
+      "policy_sha256": "5f2283d32acc74c68e0862e301b7a50a423189810ec803c8a841dd25e0ff6db5",
+      "memory_sha256": "143d7bc7da39c21c7a2b6a8027dd031b62aa1f35849739219a2f4886554e5391",
+      "elapsed_seconds": 12.773015022277832,
+      "correct": false,
+      "reward": 0,
+      "queries": 2,
+      "upstream_correct": false,
+      "grader_disagreement": false
+    },
+    {
+      "case_id": "11",
+      "split": "validation",
+      "arm": "generic",
+      "state": "complete",
+      "episode": "database-lineage",
+      "drift": false,
+      "policy_sha256": "3727d267fbd2f9711227f84bca3a447b5de00eb275b3ee70695eba1c23652d96",
+      "memory_sha256": "6a2227c746e1f89035dbdebe3b67880ed9df2a11ef8124d41f2edbb2b3c3c33b",
+      "elapsed_seconds": 70.49708294868469,
+      "correct": false,
+      "reward": 0,
+      "queries": 10,
+      "upstream_correct": false,
+      "grader_disagreement": false
+    },
+    {
+      "case_id": "13",
+      "split": "validation",
+      "arm": "revised",
+      "state": "complete",
+      "episode": "database-lineage",
+      "drift": false,
+      "policy_sha256": "5f2283d32acc74c68e0862e301b7a50a423189810ec803c8a841dd25e0ff6db5",
+      "memory_sha256": "143d7bc7da39c21c7a2b6a8027dd031b62aa1f35849739219a2f4886554e5391",
+      "elapsed_seconds": 20.32836890220642,
+      "correct": false,
+      "reward": 0,
+      "queries": 3,
+      "upstream_correct": false,
+      "grader_disagreement": false
+    },
+    {
+      "case_id": "12",
+      "split": "validation",
+      "arm": "generic",
+      "state": "complete",
+      "episode": "database-lineage",
+      "drift": false,
+      "policy_sha256": "3727d267fbd2f9711227f84bca3a447b5de00eb275b3ee70695eba1c23652d96",
+      "memory_sha256": "6a2227c746e1f89035dbdebe3b67880ed9df2a11ef8124d41f2edbb2b3c3c33b",
+      "elapsed_seconds": 23.80878782272339,
+      "correct": false,
+      "reward": 0,
+      "queries": 3,
+      "upstream_correct": false,
+      "grader_disagreement": false
+    },
+    {
+      "case_id": "15",
+      "split": "validation",
+      "arm": "generic",
+      "state": "complete",
+      "episode": "database-lineage",
+      "drift": false,
+      "policy_sha256": "3727d267fbd2f9711227f84bca3a447b5de00eb275b3ee70695eba1c23652d96",
+      "memory_sha256": "6a2227c746e1f89035dbdebe3b67880ed9df2a11ef8124d41f2edbb2b3c3c33b",
+      "elapsed_seconds": 40.55361986160278,
+      "correct": false,
+      "reward": 0,
+      "queries": 6,
+      "upstream_correct": false,
+      "grader_disagreement": false
+    },
+    {
+      "case_id": "14",
+      "split": "validation",
+      "arm": "generic",
+      "state": "complete",
+      "episode": "database-lineage",
+      "drift": false,
+      "policy_sha256": "3727d267fbd2f9711227f84bca3a447b5de00eb275b3ee70695eba1c23652d96",
+      "memory_sha256": "6a2227c746e1f89035dbdebe3b67880ed9df2a11ef8124d41f2edbb2b3c3c33b",
+      "elapsed_seconds": 19.770267724990845,
+      "correct": false,
+      "reward": 0,
+      "queries": 2,
+      "upstream_correct": false,
+      "grader_disagreement": false
+    },
+    {
+      "case_id": "13",
+      "split": "validation",
+      "arm": "generic",
+      "state": "complete",
+      "episode": "database-lineage",
+      "drift": false,
+      "policy_sha256": "3727d267fbd2f9711227f84bca3a447b5de00eb275b3ee70695eba1c23652d96",
+      "memory_sha256": "6a2227c746e1f89035dbdebe3b67880ed9df2a11ef8124d41f2edbb2b3c3c33b",
+      "elapsed_seconds": 65.1422438621521,
+      "correct": false,
+      "reward": 0,
+      "queries": 9,
+      "upstream_correct": false,
+      "grader_disagreement": false
+    },
+    {
+      "case_id": "12",
+      "split": "validation",
+      "arm": "revised",
+      "state": "complete",
+      "episode": "database-lineage",
+      "drift": false,
+      "policy_sha256": "5f2283d32acc74c68e0862e301b7a50a423189810ec803c8a841dd25e0ff6db5",
+      "memory_sha256": "143d7bc7da39c21c7a2b6a8027dd031b62aa1f35849739219a2f4886554e5391",
+      "elapsed_seconds": 21.874317169189453,
+      "correct": false,
+      "reward": 0,
+      "queries": 3,
+      "upstream_correct": false,
+      "grader_disagreement": false
+    },
+    {
+      "case_id": "14",
+      "split": "validation",
+      "arm": "revised",
+      "state": "complete",
+      "episode": "database-lineage",
+      "drift": false,
+      "policy_sha256": "5f2283d32acc74c68e0862e301b7a50a423189810ec803c8a841dd25e0ff6db5",
+      "memory_sha256": "143d7bc7da39c21c7a2b6a8027dd031b62aa1f35849739219a2f4886554e5391",
+      "elapsed_seconds": 22.169711112976074,
+      "correct": false,
+      "reward": 0,
+      "queries": 3,
+      "upstream_correct": false,
+      "grader_disagreement": false
+    },
+    {
+      "case_id": "15",
+      "split": "validation",
+      "arm": "revised",
+      "state": "complete",
+      "episode": "database-lineage",
+      "drift": false,
+      "policy_sha256": "5f2283d32acc74c68e0862e301b7a50a423189810ec803c8a841dd25e0ff6db5",
+      "memory_sha256": "143d7bc7da39c21c7a2b6a8027dd031b62aa1f35849739219a2f4886554e5391",
+      "elapsed_seconds": 29.022958040237427,
+      "correct": false,
+      "reward": 0,
+      "queries": 5,
+      "upstream_correct": false,
+      "grader_disagreement": false
+    }
+  ],
+  "case_count": 35,
+  "final_unique_cases": 20,
+  "final_condition_trials": 80,
+  "publication_scope": "content-free measurements; exact exchanges remain encrypted in owner study Home"
+}

@@ -1,0 +1,296 @@
+{
+  "manifest": {
+    "format": "atmem-memory-adaptation-v1",
+    "corpus": {
+      "id": "clbench-database-adapted-35",
+      "revision": "5f8c50eb1e84b2eda2ef4faff757dfc812a0ea26:a0cc57eeb9a54f01c0490a1b46cb705b4e05aa19",
+      "sha256": "334a8edb9f29e434e28f6f75e6cf4da46a47d062d09a69dae288a55db691048c",
+      "license": "Apache-2.0-code; dataset license unspecified; no redistribution",
+      "egress": "public_benchmark",
+      "kind": "adapted_public_pilot"
+    },
+    "runtime": {
+      "model": "openai/gpt-6-luna",
+      "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+      "settings_sha256": "b2e9fdf2ed95ae4a13bff6948543312a7a937ca610d8d049a2f56ca8ef5cdabc",
+      "runner_sha256": "846a822ece03e9adc6e5b682f6ef0af4b600b480212f80d65d950404c16e79a0",
+      "input_usd_per_token": 1e-07,
+      "output_usd_per_token": 5e-07
+    },
+    "grader": {
+      "id": "clbench-strict-scalar-sql-oracle-v1",
+      "sha256": "6bcedbe68c3f56021e94872c42ee5d769bf20c20c743157504977031b97400c5"
+    },
+    "budget": {
+      "calls": 800,
+      "tokens": 2000000,
+      "usd": 3,
+      "seconds": 5400,
+      "retained_bytes": 33554432,
+      "max_output_tokens": 4096
+    },
+    "cases": [
+      {
+        "id": "1",
+        "split": "train",
+        "episode": "database-lineage",
+        "input_sha256": "c43966472aa1417a56afb390517d65448ecfd79bd2140363a58e5b76b54248a1",
+        "target_sha256": "de53f2566260fb2e8a97a8136fcc7449343e7d3de0867942f9abb4d6cebed9a8"
+      },
+      {
+        "id": "2",
+        "split": "train",
+        "episode": "database-lineage",
+        "input_sha256": "35a3d231569112652e6e1651c80d5aedfd2df54c11bf13f46f8575f1f5bda054",
+        "target_sha256": "e8ecd0440217bdefba34c4f7872633056c9a754acb9ffd42ba868ae126951db5"
+      },
+      {
+        "id": "3",
+        "split": "train",
+        "episode": "database-lineage",
+        "input_sha256": "a59d8c83e400a2330ed9b622e75e608cadf06d3b1acb59c6a20f54afe976f5ef",
+        "target_sha256": "e2a5f1eddfebff4e768e7cbde5c2ac9591432e3f987f1a4ce6f4358a7a7da4cf"
+      },
+      {
+        "id": "4",
+        "split": "train",
+        "episode": "database-lineage",
+        "input_sha256": "33c5c736670530d236a72ad534f9df584fc758af2754b9e2f5ccbee4bc4c25f1",
+        "target_sha256": "1b167ba0d9a83aa31fcdfa30f24c948bbcc0095d454ca7673336cef2e2796663"
+      },
+      {
+        "id": "5",
+        "split": "train",
+        "episode": "database-lineage",
+        "input_sha256": "8c2373d37c0f5a073c659729a7ac0b755810f919caf2670fddd401cf5b93c982",
+        "target_sha256": "e8d682326a1eaac04fcaf0fbeaf68fcd7077a6dd2df50e424910917fb893d07b"
+      },
+      {
+        "id": "6",
+        "split": "train",
+        "episode": "database-lineage",
+        "input_sha256": "92134bbe77d1011cc64e861475c9a2c0dc3959b2b8b523bfbee1b8c71460b83c",
+        "target_sha256": "b4d715d1c11e1d64dc232229f04277623dae6ad84f17980d1b030593951bdde8"
+      },
+      {
+        "id": "7",
+        "split": "train",
+        "episode": "database-lineage",
+        "input_sha256": "88805aa805d9f84bfdc14615b898883573daf30628c94c7fcf127957ef661040",
+        "target_sha256": "adba7d31367efdc02be3887fc695c0bb189ddbe19ebe0b40b975f90fbfca0aca"
+      },
+      {
+        "id": "8",
+        "split": "train",
+        "episode": "database-lineage",
+        "input_sha256": "fcef63d54f0bb909c10f4611dd8aa7ddfeb574ab546525404c4023336916efe1",
+        "target_sha256": "acf50f84b3350c7dbb4c893eaf17752b93628fb682f0fa121c6be60dec8cbc4a"
+      },
+      {
+        "id": "9",
+        "split": "train",
+        "episode": "database-lineage",
+        "input_sha256": "1cb6efec892ac427b9ce6150572d8c979400d0bb2ed2ca5382647988abb5e272",
+        "target_sha256": "c51bb200fb52f75bcd9a80daee4e691efd87f272cde9beda35591960a3ec222a"
+      },
+      {
+        "id": "10",
+        "split": "train",
+        "episode": "database-lineage",
+        "input_sha256": "08a5218351e45323b734a2747d52bf738f18b646f8ba964253301412c9d292e3",
+        "target_sha256": "b89ba0cffcc272976e6fbfedca7804afc051082e7d1f3beec6933e4390dbd38a"
+      },
+      {
+        "id": "11",
+        "split": "validation",
+        "episode": "database-lineage",
+        "input_sha256": "dc8cc87a4e1ce138c92d9960c2c3266b27a781abed94fec8a98d7870235460f9",
+        "target_sha256": "99a19e8bfdfc0bef6f8d9d47dcdc11e46ff2403679b37d096ff9c86d1b0c2a81"
+      },
+      {
+        "id": "12",
+        "split": "validation",
+        "episode": "database-lineage",
+        "input_sha256": "5652ca2d90f7e01ac19d35725ab2b4f423c10162cc23f739183b8093bc3a9e94",
+        "target_sha256": "84ba0aed94c102ef0024f72ccce2ca1ea16ea6212227ca747442d2e953a37d13"
+      },
+      {
+        "id": "13",
+        "split": "validation",
+        "episode": "database-lineage",
+        "input_sha256": "4ef013975d8d627649e6f4ef290b2b8af2c53ed8bdb0fc25d00d0a406636c02a",
+        "target_sha256": "6587673cca83bb18a30ffe140d598274035281fb7276a0206cab9f8dcd844ea9"
+      },
+      {
+        "id": "14",
+        "split": "validation",
+        "episode": "database-lineage",
+        "input_sha256": "7e5d0f1f0bfd24af27eb3c0b13426689320e1ba202efe22b59ee344648b2e6ac",
+        "target_sha256": "27bdb743c7bad6664343bc1732cfcd2f499b071b58469f5550858d9372525992"
+      },
+      {
+        "id": "15",
+        "split": "validation",
+        "episode": "database-lineage",
+        "input_sha256": "65a91e3d09c64a06632158ba176dea66004da9aa02945152945b2fc9aa7cdafa",
+        "target_sha256": "5da9fc44877cfb680751fa67d7a13ce8cee923f83a279d6edbb36d1cdd163a73"
+      },
+      {
+        "id": "16",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "6d20a68b58bf2783f8552c513afe040f1b714d31223cbbe0d6fcf375679fe41a",
+        "target_sha256": "58cc59e3b6457b68bbd82aae39c15f12afe410c7ecfe7ef00d401b4eb8861195"
+      },
+      {
+        "id": "17",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "46971a59d2febc96017c0e7954476a058c318d9300a1f4aa2b533a982065f5b3",
+        "target_sha256": "3245196dc202407ff29d477430fe842eb5a577257e7f195ad5d1c7d5cfd8a859"
+      },
+      {
+        "id": "18",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "ab60899ad2ccb2a154106f650095b1087c3a948df4ee2a6d72aec75425586e4b",
+        "target_sha256": "d4f2301949c90a867a2693dbbfd5868994158669e519bc7543275623145538e3"
+      },
+      {
+        "id": "19",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "ad84ce8ee47ceeeb88915b6b3442c1eb358ed09a8891b68874990de44ff20f48",
+        "target_sha256": "b4b6f761985bbf21df2a18bc2d77397035e7a2eedfac9e10b42f23060b1c6230"
+      },
+      {
+        "id": "20",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "03239edda2c79e5a5c78b69eaab7e464f6c3d09fb66c5cc195cddf8d9c28588c",
+        "target_sha256": "41abe76ead6ffe2d531801c002335683ea87df8446d6a0c7d144ba4b47953a3e"
+      },
+      {
+        "id": "21",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "02ec60b2f907108554b5762ffbfa09da9d26c93e0cc36bbd3c8d00cfaed95182",
+        "target_sha256": "0d5d4d0cf1e5f55b578bbed7c01b021508a183aa91a6d663d8eb0634396bb875"
+      },
+      {
+        "id": "22",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "a6393359dc598d89503d8fc23fc4ecf1ca56ca0df7c7b894f85be6adb1762d39",
+        "target_sha256": "2bc5710bcdd829174e8e6cd5cc279eb6695359ba71840638c92730d6a2071074"
+      },
+      {
+        "id": "23",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "1d64ccdddaff7bee29968e2403a5c9645cd13f8dc3086d22856feb072dac0290",
+        "target_sha256": "1c14b6eaf923f3adf96b55fa3e303419d3940a7f94d53b984f41a9f6b057e028"
+      },
+      {
+        "id": "24",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "8a68b4488e891c8b03f4c5b3abd3f2d2f41a1a429d4f724f2a247cbd0748544b",
+        "target_sha256": "836f508335564fa60fa99797efe44ce021821c69849bf39e213a21c3f31f99e6"
+      },
+      {
+        "id": "25",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "fc98400ec17539102a53016e31c297c3da3faf1434daf3957e36f262bfd48da4",
+        "target_sha256": "4b106442b31446fc4db4b2cd3658ab627e2a5590e434017cfe00df6cd0609fc5"
+      },
+      {
+        "id": "26",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "15ef6d0b087037c3762092610f62ebc8778b84b633703f52681eafb790657d2d",
+        "target_sha256": "6e12a6b7971c7b5366d82554642b3d38bf70656727fbb91521cda1ba7db0dd4b"
+      },
+      {
+        "id": "27",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "7313090b7de371c3fc6958c82aef72068ada7e5971585f9b121896f5d87baa40",
+        "target_sha256": "2658be50295908c5e39943e8c7d66a4f2e98730fb0515ba82a54ebe0628121fd"
+      },
+      {
+        "id": "28",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "2e7f14c35353be9b75e26a144a213563f7b111bd1fc2e3cca66e99d0f70ef2c2",
+        "target_sha256": "e037c83933e1ca92b32ff07ae36c3eeebeb87e5d8b7c7cbdc97f7ea2c853ab5a"
+      },
+      {
+        "id": "29",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "0069dd12cf505283c73cb68db4edec40a830e1357d0b61389cfe46198a950335",
+        "target_sha256": "417fd63fbe4d79adbc029e2f5de27593cadb449ddfeabcbce0d9a0642f5a2c69"
+      },
+      {
+        "id": "30",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "24719633499c81c35a25d1f9ca47d7e75ce9d0b57d3070f9fce90a17b74c8571",
+        "target_sha256": "2580eea79f7d29bbe72bd925894bdbb3a6b9db01956779b456950f25c7701053"
+      },
+      {
+        "id": "101",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "78e7754014957a7defbdec05ab733ad13e02d508ca50b5187c93faffcf93a19a",
+        "target_sha256": "8962c677a0188aadf5b32c269c751f2db957b55d5775c6c3a4593b1f2e02ca30"
+      },
+      {
+        "id": "102",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "45bce620ab1f7a47f1b011c58206f5f05d6e6b529909401603c7093856dc0caf",
+        "target_sha256": "16c2882f6e459892cfbba5ed49db521ac6217d632e844b433186585f878f8d8b"
+      },
+      {
+        "id": "103",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "58bbbd60068db73a39a5c4382aee155ffc5553645acbd83b2212bdcca79d7d8a",
+        "target_sha256": "ff622ad58d433ec467c5e4f1a6c68dc5fd099c70c24d8d9a4586b17ba582c5db"
+      },
+      {
+        "id": "104",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "815b6942c77b1b741b5af2e722615ad414e5f4e023f055a905c32caa7b09c4c0",
+        "target_sha256": "d0e61dccb3d1eeb57a74fa91f30277987819f3e794a2e7741cb295fc24f73e11"
+      },
+      {
+        "id": "105",
+        "split": "test",
+        "episode": "database-lineage",
+        "input_sha256": "370f9ed6b57a8fcec09aa33d72f845b7d7fc7c04a3505b0a1d2fcb6d05b0515d",
+        "target_sha256": "ce41f5f3f751a22bef4edfd22aa550e074e67cad84cf9aaf1f691c6cf68ab89a"
+      }
+    ],
+    "hypothesis": "one training-derived memory instruction revision improves objective reward without accuracy loss",
+    "seed": 52
+  },
+  "manifest_sha256": "8ebf796ccce5c511feb421164c46e3249f2dda2f8339c165a13ebd66e699f558",
+  "environment": {
+    "python": "3.12.2 | packaged by conda-forge | (main, Feb 16 2024, 21:00:12) [Clang 16.0.6 ]",
+    "platform": "macOS-26.5.2-x86_64-i386-64bit"
+  },
+  "source_artifact_sha256": {
+    "products.db": "edf8ee80ff125de0bfd6c37a1d185efa9e3037ce28eb1bd1d32ae0829bd264a6",
+    "products_drifted.db": "a53d523f70604be0e4328f3722417895250ac35e1127cc504b609576aee70fad",
+    "questions.json": "f98e515c14b74f4d30c29401fb79cca9ceeb15fe9ee2432b10265a4a649d1771",
+    "questions_post_drift.json": "c05aa6a33def3878e6b655a1cba6454e55e1a9c16ded8c1fe53b7811986a45de"
+  },
+  "memory_byte_limit": 12000,
+  "queries_per_task": 15,
+  "final_memory_updates": false
+}
