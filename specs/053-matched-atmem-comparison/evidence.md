@@ -58,3 +58,17 @@ One protocol-only repair restores the public upstream framing and10-second SQL
 tool deadline. It does not reveal the hidden mapping, alter notes or policy, change
 the grader, or retry consumed questions. v2 uses only109–120, separately preregistered
 and subject to the same first-three all-zero stop and the remaining shared budget.
+
+## Explicit settled-malformed recovery
+Protocol2 completed ten paired questions, then the first original-AtMem response
+for119 contained multiple JSON objects and strict parsing stopped the process.
+All154paid calls were settled; no unknown/pending call. Preserve interrupted summary.
+An explicit one-shot owner continuation classifies that retained malformed output
+as incorrect without extracting its apparent answer or repeating any paid call.
+It skips all completed/attempted tasks, continuing only untouched119/120 arms under
+the original settings, policies, grader, package/generation pins and remaining
+deadline/spending ceilings. Unknown calls, valid replacement output, a second
+continuation or changed frozen implementations are refused. The normal entry point
+still prohibits automatic paid resume. Interrupted119 latency is unavailable and
+excluded, not invented. This is a capture/recovery correction, not a new candidate
+or protocol-quality rerun; the original script/policy/grader bytes stay unchanged.
