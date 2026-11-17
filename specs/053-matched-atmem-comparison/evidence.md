@@ -72,3 +72,38 @@ continuation or changed frozen implementations are refused. The normal entry poi
 still prohibits automatic paid resume. Interrupted119 latency is unavailable and
 excluded, not invented. This is a capture/recovery correction, not a new candidate
 or protocol-quality rerun; the original script/policy/grader bytes stay unchanged.
+
+## Completed v2 audit: scores do not qualify a product comparison
+All36scheduled condition trials completed: strict no-memory6/12, original2/12,
+pilot0/12; permissive parser6/12,2/12,1/12.185calls/499097tokens/USD0.029104795;
+all calls settled on OpenAI/GPT6Luna. Elapsed1082.87seconds includes the explicit
+recovery pause. Combined with v1:222calls/582740tokens/USD0.035416155. Exact raw
+content-free outcomes are retained in results-v2.json, with qualification=false.
+
+Crucial host-adapter defect: retrieved historical questions appeared after the
+actual task in one user message. In110 the retrieved context ended with a previous
+median-price question, contained no reference to the requested ratio, and both
+memory arms answered that old question. The stateless arm answered the actual ratio.
+The parent author owns this integration failure. It is evidence of task displacement,
+not a valid general finding that either AtMem version is worse. Do not market these
+scores as a qualified original-versus-updated comparison.
+
+The corrected boundary quotes history as JSON in a separate data message and puts
+current_task in the final task message, with a shared explicit system instruction.
+Hidden target/oracle fields are rejected at the actor entry point. Each SQL tool
+result is retained before another model call. Malformed responses are failed in
+place, without replaying a call or requiring ordinary-run continuation.
+
+Astra independently authored6fresh public-DB tasks from schema without prior-score,
+policy or note inspection. Fixed mix:2scalar aggregates/2joins or comparisons/
+2migration checks. All final read-only oracles passed within2.114seconds. Task
+definitions were fixed before target execution; one slow semijoin plan was replaced
+by an equivalent join, with the aborted checks documented. Cohort SHA256
+9b92d8f3923db01d32aa1b192f133518acba7c1aa7149595b6e5d79809a02d76.
+Exact cohort questions/targets/SQL remain owner-only and are captured encrypted;
+public provenance is content-free. No consumed task is rescored. Remaining budget
+is deducted cumulatively, not reset. No model, policy, grader or package change.
+
+Provider USD/token figures refer only to experimental API calls. They exclude
+Codex/Astra development/research usage and setup time. No model-weight training,
+production qualification, host activation or release publication is claimed.

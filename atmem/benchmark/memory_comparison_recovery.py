@@ -38,7 +38,9 @@ def captured_failure(ledger, case_id, arm):
         raise ValueError("cannot replace a valid captured model response")
     observations = []
     messages = last["request"]["messages"]
-    for index in range(2, len(messages), 2):
+    for index in range(len(messages)):
+        if messages[index]["role"] != "assistant":
+            continue
         action = json.loads(messages[index]["content"])
         response = json.loads(messages[index+1]["content"])
         if action["action"] != "QUERY" or "observation" not in response:
@@ -123,7 +125,7 @@ def run(args):
                         load = GENERIC["load"] if arm == "original" else history["policy"]["load"]
                         ledger.retain("comparison_context", key, prepared)
                     try:
-                        output = execute(ledger, provider, args.data.resolve(), case, arm, context, load)
+                        output = execute(ledger, provider, args.data.resolve(), {k: case[k] for k in ("id", "public")}, arm, context, load)
                     except json.JSONDecodeError:
                         output = captured_failure(ledger, case["id"], arm)
                 grade = grade_answer(output, case["target"])

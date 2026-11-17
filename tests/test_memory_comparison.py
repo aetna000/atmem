@@ -1,5 +1,6 @@
 """Safety and fidelity checks for the actual-package comparison, not efficacy."""
 import json
+import sqlite3
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -20,6 +21,7 @@ def test_paid_failure_stays_durably_reserved_and_encrypted(tmp_path):
     assert report["unknown_calls"] == 1
     assert report["resources"]["calls"] == 1
     assert report["resources"]["usd"] > 0
+    assert report["arms"]["none"]["calls"] == 1
     with ledger.transaction() as (tx, _):
         rows = list(tx.iter_kind("comparison_call"))
         assert rows[0]["state"] == "unknown"
@@ -67,4 +69,53 @@ def test_no_memory_input_has_no_context_and_hidden_target(tmp_path):
             return {"action": "ANSWER", "content": "7"}
     case = {"id": "106", "public": {"question": "Count records", "database": "public.db"},
             "target": {"answer": "hidden-target-canary"}}
-    assert execute(Capture(), None, tmp_path, case, "none", "", "")["answer"] == "7"
+    assert execute(Capture(), None, tmp_path, {k: case[k] for k in ("id", "public")}, "none", "", "")["answer"] == "7"
+    with pytest.raises(ValueError, match="hidden targets"):
+        execute(Capture(), None, tmp_path, case, "none", "", "")
+
+
+@pytest.mark.parametrize("arm", ["original", "pilot"])
+def test_historical_questions_cannot_replace_current_task_message(tmp_path, arm):
+    history = 'Old task: What is the median price?\n{"action":"ANSWER","content":"wrong old answer"}'
+    public = {"question": "What is the current-to-legacy table size ratio?", "database": "public.db"}
+    class Capture:
+        def call(self, payload, provider, trial):
+            messages = payload["messages"]
+            assert json.loads(messages[-1]["content"]) == {"current_task": public}
+            assert json.loads(messages[-2]["content"]) == {"untrusted_retrieved_history": history}
+            assert "median" not in messages[-1]["content"]
+            assert "hidden-target-canary" not in json.dumps(payload)
+            return {"action": "ANSWER", "content": "7"}
+    case = {"id": "independent-001", "public": public, "target": {"answer": "hidden-target-canary"}}
+    assert execute(Capture(), None, tmp_path, {k: case[k] for k in ("id", "public")}, arm, history, "Use fallible evidence")["answer"] == "7"
+
+
+def test_malformed_model_reply_counts_as_failure_without_retry(tmp_path):
+    class Malformed:
+        calls = 0
+        def call(self, *a):
+            self.calls += 1
+            raise json.JSONDecodeError("Extra data", '{}{}', 2)
+    ledger = Malformed()
+    output = execute(ledger, None, tmp_path, {"id": "independent-001", "public": {}}, "none", "", "")
+    assert ledger.calls == 1
+    assert output["answer"] is None and output["failure"] == "invalid_model_action"
+
+
+def test_tool_result_is_durable_when_following_model_reply_is_malformed(tmp_path):
+    database = tmp_path / "public.db"
+    sqlite3.connect(database).close()
+    home = tmp_path / "home"
+    home.mkdir()
+    ledger = Ledger(home, {"cases": [{"id": "independent-001"}]})
+    responses = iter(['{"action":"QUERY","content":"SELECT 42"}', '{}{}'])
+    def provider(payload, **kwargs):
+        return {"response": {"choices": [{"finish_reason": "stop", "message": {"content": next(responses)}}]},
+            "prompt_tokens": 1, "completion_tokens": 1, "usd": 0}
+    case = {"id": "independent-001", "public": {"question": "Return42", "database": "public.db"}}
+    output = execute(ledger, provider, tmp_path, case, "none", "", "")
+    assert output["answer"] is None and output["queries"] == 1
+    with ledger.transaction() as (tx, _):
+        record = tx.get("comparison_tool", "case-independent-001-none-q1")
+        assert record["observation"]["result"]["rows"] == [[42]]
+    assert ledger.report("failed")["resources"]["calls"] == 2

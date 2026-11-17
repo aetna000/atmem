@@ -1,0 +1,53 @@
+{
+  "format": "atmem-independent-cohort-provenance-v1",
+  "cohort_sha256": "9b92d8f3923db01d32aa1b192f133518acba7c1aa7149595b6e5d79809a02d76",
+  "database_sha256": "a53d523f70604be0e4328f3722417895250ac35e1127cc504b609576aee70fad",
+  "author": "Astra research subagent, instructed not to inspect prior scores/policies/notes",
+  "kind": "independently authored public-DB diagnostic, not official CL-Bench or production qualification",
+  "mix": [
+    "2 scalar filtered aggregates",
+    "2 joins/group comparisons",
+    "2 schema-migration checks"
+  ],
+  "case_count": 6,
+  "cases": [
+    {
+      "id": "independent-001",
+      "input_sha256": "3674c3d99334683562b98211c5853bdff7323a0680848c17c44ec1c24248fa41",
+      "target_sha256": "314cb89eb8dc17c6c6b36cd2aed0286e662dc1ce4f1aac53e040c4da8a2ae9d7",
+      "oracle_sql_sha256": "d8af9622aef8e3314555dc395205436c7bf1a82fe569db4954504c422fd43972"
+    },
+    {
+      "id": "independent-002",
+      "input_sha256": "05c80836c20bf73bf042f08bdc2cc4e1dcf5e1da07ea0d43638d26578726301b",
+      "target_sha256": "ba95cc7d1a71826426e11542ad77b989d8927dda728302db1770c32855a47467",
+      "oracle_sql_sha256": "75b16af4906261bc0c99912792c2f59de936956faa25af9d492d1e1d822f4c06"
+    },
+    {
+      "id": "independent-003",
+      "input_sha256": "04362b1182b298399d9d110bf9bbf5470e9a63af4f18930b1bfa7f1a49386a57",
+      "target_sha256": "f26b7c2bede9f42563cc361c2ea717f9b0ba7d2c005726ce1996aee5cf33a084",
+      "oracle_sql_sha256": "e4b3be8379ff2e651090826a82dbb97d55561b1d7f138f8aed2420fb7dd24475"
+    },
+    {
+      "id": "independent-004",
+      "input_sha256": "f443005a37554c34e9fb81c1e8e266300a89e08f7dcb32d79102416d429474bd",
+      "target_sha256": "c298260b8eae189877028bb0a9244d83550a36ae1e9b1b7a2bef34adefcfd217",
+      "oracle_sql_sha256": "0e5c50488f05073d5b9f2d84c5f365e2adbf12123a0870cca24bf2fcd2f65bbc"
+    },
+    {
+      "id": "independent-005",
+      "input_sha256": "a29abffdc824b5ea642de7b757dc2acbb0e27a6a48dda509bddded030771715f",
+      "target_sha256": "489024c96eae1b41c6a584404246598d3fb8a08540a58d0a32a3f5d347517984",
+      "oracle_sql_sha256": "a5e2faf7a446c50682f652f560c6280995ba23739f41e79008113b0a00eb1ea7"
+    },
+    {
+      "id": "independent-006",
+      "input_sha256": "3897c29e7855049ceb27f8a0185920b2bff74248eed1f68940f439ec91d442b1",
+      "target_sha256": "e7046583e3e77d85090e08b97612f2ed3fc427b9d9116473622ada590bfcdd6e",
+      "oracle_sql_sha256": "f16a5a3eac86f5149f110df82cf1e626a2dbcdb1473f9222aef7b7912ed5e000"
+    }
+  ],
+  "raw_cohort": "owner-only external artifact, copied exactly into new encrypted study ledger before inference",
+  "oracle_validation": "All6finalplans passed read-only10s checks; max2.114seconds. Earlier semijoin plan timeout and equivalent rewrite retained in research note; no task/answer selection after outcome."
+}

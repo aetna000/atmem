@@ -28,3 +28,10 @@ inference, restore the original public separate-dataset framing and10-second SQL
 limit. v2 uses only109–120, with the same all-zero first-three stop. Policies,
 grader and historical memories stay frozen. Both protocol attempts share the
 original resource ceiling; v1 costs are deducted from v2. Preserve and report both.
+
+v2 completed with a discovered host-adapter defect. Repair message separation and
+in-place malformed-action handling, then use an independent six-task cohort authored
+by Astra from schema without score/policy inspection. Never rescore old questions.
+Reuse the installed-package workers, immutable policies and encrypted ledger; no
+new infrastructure, model, search or learning claim. Freeze the independent cohort
+SHA and all source identities before inference and preserve all prior resources.

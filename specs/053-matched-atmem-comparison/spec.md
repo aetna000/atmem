@@ -54,3 +54,23 @@ candidate change. This is one protocol repair, not a score-driven candidate sear
 Deduct v1's entire resource use from the original shared ceiling: v2 maximum363calls,
 916357tokens/USD1.49368864/2400seconds/23153146serialized reservation bytes.
 Do not perform another live protocol/candidate rerun if this fails.
+
+## Qualification correction after the completed v2 audit
+v2's36outcomes are preserved but do not qualify a product comparison: the adapter
+appended historical questions after the current task, and both memory arms answered
+one remembered median-price question instead of the requested attribute-table ratio.
+This is an implementation defect in the host adapter, not demonstrated AtMem quality.
+Fix the boundary: quoted history in its own data message, current_task in a separate
+final task message, common explicit system rule, hidden targets still grader-only.
+Malformed actions become a failed trial in place, never a paid retry; capture each
+tool result before another call. Tests must reproduce historical-question displacement.
+
+No consumed question may be rescored. Independently authored research cohort of
+exactly6new tasks, from schema only and without seeing prior scores or policies,
+replaces official CL-Bench questions. Freeze its content hash and oracle targets
+before inference. It is an independently authored public-DB diagnostic, not an
+official benchmark result, native-host run or production qualification. Keep the
+existing candidate, policies, history and actual installed packages unchanged.
+First3all-zero stop remains. Cumulative budgets across all attempts stay400calls/
+1Mtokens/USD1.5: v3remaining178calls/417260tokens/USD1.464583845/1200seconds/
+12795217serialized reservation bytes. No further protocol/candidate run follows.
