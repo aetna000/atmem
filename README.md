@@ -1,10 +1,10 @@
 # AtMem
 
-[![Version 2.3.15b1 (beta)](https://img.shields.io/badge/version-2.3.15b1%20beta-orange)](./docs/releases/v2.3.15b1.md)
+[![Version 2.3.15b2 (beta)](https://img.shields.io/badge/version-2.3.15b2%20beta-orange)](./docs/releases/v2.3.15b2.md)
 
-> **AtMem 2.3.15b1** is an opt-in beta for governed RAG, generic MCP and independently verified feedback.
-> Install explicitly: `python -m pip install --upgrade "atmem[code]==2.3.15b1"`.
-> Read the [beta limitations and backup requirements](./docs/releases/v2.3.15b1.md). Production qualification and automatic activation are not available.
+> **AtMem 2.3.15b2** adds an opt-in measured memory-adaptation study alongside governed RAG, generic MCP and verified feedback.
+> Install explicitly: `python -m pip install --upgrade "atmem[code]==2.3.15b2"`.
+> Read the [beta limitations and backup requirements](./docs/releases/v2.3.15b2.md). Production qualification and automatic activation are not available.
 > **AtMem 2.3.14** remains the stable release. Ordinary memory and context defaults remain unchanged.
 > See the [release notes](./docs/releases/v2.3.14.md) for compatibility, opt-ins and limitations.
 > **AtMem 2.3.10** adds opt-in, bounded source-evidence discovery.
@@ -33,6 +33,8 @@ custom agent governed long-term memory. **AtBot is installed automatically** as
 AtMem's private intelligence companion: AtBot proposes and ranks; AtMem alone
 authorizes, stores, scopes, injects, corrects, and deletes memory.
 
+Experimental [measured memory adaptation](docs/measured-memory-adaptation.md) compares one training-derived memory-policy revision with fixed-agent controls using an objective grader. It does not automatically activate policies or train model weights.
+
 ## Start here
 
 These commands explicitly install the **beta candidate**. For the stable line,
@@ -43,7 +45,7 @@ automatically enable the new RAG/feedback services.
 ### 1. Install AtMem and choose memory intelligence
 
 ```bash
-python -m pip install --upgrade atmem==2.3.15b1
+python -m pip install --upgrade atmem==2.3.15b2
 atmem atbot setup
 atmem atbot doctor
 atmem init
@@ -104,7 +106,7 @@ package yourself.
 Already using AtMem 2.1 with OpenClaw? Upgrade in place:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.15b1
+python -m pip install --upgrade atmem==2.3.15b2
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -127,7 +129,7 @@ selected by `python`, rather than an unrelated `pip` executable on `PATH`.
 #### Pydantic AI — native capability
 
 ```bash
-python -m pip install 'atmem[pydantic-ai]==2.3.15b1'
+python -m pip install 'atmem[pydantic-ai]==2.3.15b2'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -152,7 +154,7 @@ agent = Agent("openai:gpt-5-mini", capabilities=[memory])
 #### LangChain/LangGraph — native middleware
 
 ```bash
-python -m pip install 'atmem[langgraph]==2.3.15b1'
+python -m pip install 'atmem[langgraph]==2.3.15b2'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -320,7 +322,7 @@ and restores it exactly.
 ## Installation details
 
 ```bash
-python -m pip install atmem==2.3.15b1
+python -m pip install atmem==2.3.15b2
 atmem --version
 ```
 
@@ -330,7 +332,7 @@ embedding model, while the semantic extra adds local sentence-transformer
 choices:
 
 ```bash
-python -m pip install 'atmem[semantic]==2.3.15b1'
+python -m pip install 'atmem[semantic]==2.3.15b2'
 ```
 
 For repository development, install both workspace packages:
@@ -518,7 +520,7 @@ atmem control restore
 Existing 2.1 installations upgrade without starting a new migration:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.15b1
+python -m pip install --upgrade atmem==2.3.15b2
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -752,13 +754,13 @@ npm test
 npm run smoke
 ```
 
-This beta source line is **2.3.15b1**, with OpenClaw bridge **2.3.15-beta.1**,
+This beta source line is **2.3.15b2**, with OpenClaw bridge **2.3.15-beta.2**,
 legacy AtBot companion **0.1.1**, and AtFlows **0.1.8**.
-Use the [beta release note](docs/releases/v2.3.15b1.md) for install/upgrade commands,
+Use the [beta release note](docs/releases/v2.3.15b2.md) for install/upgrade commands,
 compatibility, research opt-ins and limits.
 The final [self-tested DolphinBench result](https://huggingface.co/datasets/atmem/dolphinbench-routed-v4-20261101)
 is **479/600 (79.83%)**, against its frozen i3/routed-v4 research artifact and
-installed **2.3.10b1** base. It is not a fresh benchmark of either the 2.3.14 or 2.3.15b1 wheel, or
+installed **2.3.10b1** base. It is not a fresh benchmark of either the 2.3.14 or 2.3.15b2 wheel, or
 an official certification. Per-action outcomes and failing-check evidence are
 published with that dataset. Historical artifacts retain their identities.
 

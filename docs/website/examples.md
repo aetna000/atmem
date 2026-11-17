@@ -34,3 +34,10 @@ is not confirmed delivery. See [Black Box interpretation](../agent-blackbox.md).
 The first-memory example deletes its temporary files automatically. Agent examples
 create persistent memory/evidence and may call configured model services.
 Return to shadow to stop future injection; this does not undo past tool actions.
+
+## Experimental measured memory adaptation
+
+The [study guide](../measured-memory-adaptation.md) includes a model-free contract
+example and an explicitly paid, cost-bounded public database pilot. Synthetic
+contract success is not learning evidence. The real pilot keeps exact exchanges
+encrypted and never activates a production policy.

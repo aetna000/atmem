@@ -1,7 +1,7 @@
 # Verified memory feedback — implementation status
 
 Spec: `specs/050-verified-memory-feedback/spec.md`.
-This feature is a development preview in the `2.3.15b1` beta candidate,
+This feature is a development preview in the `2.3.15b2` beta candidate,
 not a production-qualified memory or enforcement feature. Importing `atmem.feedback` enables nothing. Existing recall, stores,
 adapters and native authority remain the defaults. The opt-in evidence format
 upgrade and new explicit authority boundaries are documented below.

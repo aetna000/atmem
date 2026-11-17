@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "2.3.15b1",
+  "version": "2.3.15b2",
   "sections": {
     "": "Documentation",
     "portfolio": "Product portfolio",
@@ -11,6 +11,16 @@
     "releases": "Releases"
   },
   "pages": [
+    {
+      "slug": "releases/2.3.15b2",
+      "title": "AtMem 2.3.15b2 \u2014 Measured memory adaptation beta",
+      "source": "docs/releases/v2.3.15b2.md"
+    },
+    {
+      "slug": "reference/measured-memory-adaptation",
+      "title": "Measured memory adaptation (experimental)",
+      "source": "docs/measured-memory-adaptation.md"
+    },
     {
       "slug": "releases/2.3.15b1",
       "title": "AtMem 2.3.15b1 \u2014 Governed RAG and verified feedback beta",

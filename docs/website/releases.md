@@ -1,11 +1,16 @@
 # Releases
 
-## Current beta: 2.3.15b1
+## Current beta: 2.3.15b2
 
-[AtMem 2.3.15b1](../releases/v2.3.15b1.md) adds opt-in governed RAG, generic MCP,
-independent per-action verification and feedback inspection, plus Windows and
-encrypted-restore fixes. Production qualification remains inconclusive; this
-is not a stable promotion or a new benchmark result.
+[AtMem 2.3.15b2](../releases/v2.3.15b2.md) adds an explicitly invoked
+[measured memory-adaptation study](../measured-memory-adaptation.md): objective
+outcomes, frozen train/validation/test boundaries, simple memory baselines and
+persistent cost ceilings. Governed RAG/MCP and verified feedback remain opt-in.
+Production qualification remains inconclusive; this is not a stable promotion,
+weight-training capability or a new DolphinBench result.
+
+The historical [2.3.15b1](../releases/v2.3.15b1.md) introduced governed RAG/MCP,
+independent per-action verification and feedback inspection.
 
 ## Current stable: 2.3.14
 

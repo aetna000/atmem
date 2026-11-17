@@ -1,7 +1,7 @@
 # Current status
 
-**Beta candidate:** AtMem `2.3.15b1`, bridge `2.3.15-beta.1`.
-See the [beta release note](releases/v2.3.15b1.md) for governed RAG, generic MCP,
+**Beta candidate:** AtMem `2.3.15b2`, bridge `2.3.15-beta.2`.
+See the [beta release note](releases/v2.3.15b2.md) for governed RAG, generic MCP,
 verified feedback and Windows/restore fixes. Production qualification and final
 feature acceptance remain incomplete; the beta does not change benchmark claims.
 
@@ -85,3 +85,5 @@ uses the documented authenticated symmetric profile.
 See the [2.3.10 release notes](releases/v2.3.10.md) for stable upgrade and migration commands,
 and the [implementation evidence index](implementation-evidence/README.md) for the
 recorded gates.
+
+Spec052 adds an owner-invoked [measured memory-adaptation study](measured-memory-adaptation.md). It compares fixed-agent controls with one training-derived instruction revision. No automatic production activation, model-weight training or broad efficacy claim is provided.
