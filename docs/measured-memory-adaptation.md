@@ -37,6 +37,10 @@ The intervention changes instructions and derived notes together. It does not
 isolate writing from retrieval. These are fixed-agent native-style controls, not
 measurements of native Codex/Claude/OpenClaw runtimes or AtMem's normal recall API.
 The strongest simple baseline matters; outperforming only no-memory is insufficient.
+In particular, generic notes are **not original AtMem**. The Spec052 pilot did not
+measure an AtMem package against an older AtMem package. A separate Spec053
+comparison exercises installed 2.3.14 and the candidate's actual encrypted
+Context Engine V3 path, alongside no memory; its results must be reported separately.
 
 The study freezes corpus hashes, all case memberships, grader/implementation
 identities, runtime settings and ceilings before inference. Train IDs1–10 generate
