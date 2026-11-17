@@ -112,6 +112,7 @@ storage-backends = [
 
 [project.scripts]
 atmem = "atmem.cli:main"
+atmem-memory-study = "atmem.benchmark.memory_adaptation:main"
 
 [project.urls]
 Homepage = "https://github.com/aetna000/atmem"
