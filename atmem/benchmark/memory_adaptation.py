@@ -105,7 +105,9 @@ def _query(database, sql, args, seconds, max_rows):
         while len(canonical_json(result).encode())>6000 and result["rows"]:
             result["rows"].pop();result["truncated"]=True
         return result
-    except sqlite3.Error:
+    except (sqlite3.Error, sqlite3.Warning):
+        # Python3.10 reports multiple statements as Warning, later versions
+        # use ProgrammingError. Both are refused with the same bounded result.
         return {"error":"query_failed"}
     finally:
         conn.close()

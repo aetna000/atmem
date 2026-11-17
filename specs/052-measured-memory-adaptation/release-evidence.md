@@ -69,9 +69,15 @@ final commit remain required.
 ## Finished pilot
 
 Manifest8ebf796ccce5c511feb421164c46e3249f2dda2f8339c165a13ebd66e699f558;
-implementation source a5b1bd9 still matches both frozen implementation-file digests.
+At pilot completion, source a5b1bd9 matched both frozen implementation-file digests.
 All 80 final condition trials completed; primary strict counts:no-memory7/20,
 transcript 5/20,generic 6/20,revised 5/20. Upstream parser counts9/20,7/20,7/20,6/20.
 Validation both 0/5, tie retained generic. This is a failed intervention; no further
 candidate/model campaign was run. Exact raw content-free metrics and limitations
 are checked into Spec 052; the full Home stays encrypted on external MEM0.
+
+## Python 3.10 hosted correction
+The existing real multiple-statement refusal test failed because Python3.10 uses
+`sqlite3.Warning` instead of later versions' `ProgrammingError`. The adapter now
+refuses either consistently. This is a post-pilot compatibility guard, not a
+changed scorer or rerun; final hosted gates are repeated on the corrected source.

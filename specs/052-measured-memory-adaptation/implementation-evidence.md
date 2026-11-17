@@ -168,3 +168,14 @@ No DolphinBench campaign, native host reconfiguration or website deployment occu
 These overlapping suites are not an aggregate unique-test count. Skipped optional
 framework/browser/platform journeys are not qualification passes. Hosted final-commit
 checks and exact publication identifiers belong in release-evidence.md.
+
+## Post-pilot Python 3.10 compatibility correction
+
+The final hosted Python3.10 job found that SQLite reports multiple statements as
+`sqlite3.Warning`, whereas the reference Python3.12 runtime raises a subclass of
+`sqlite3.Error`. The query adapter now handles both as the same refused query.
+The existing real SQL denial test caught this difference; no test was weakened.
+The pilot ran before this compatibility-only exception-handler change. Its frozen
+source/manifest, grader, policies, outcomes and scores are preserved; there was
+no new model call, scorer change or repeated final test. The shipped SDK controller
+remains byte-identical; the runner differs from the pilot by this documented guard.
