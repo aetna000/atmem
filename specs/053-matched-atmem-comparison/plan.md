@@ -1,37 +1,28 @@
-# Plan — actual installed-package comparison
+# Plan — actual installed-package diagnostic
 
-Use a standalone worker (`tools/matched_memory_worker.py`) launched via Python -I
-from explicitly isolated original/candidate environments. Its public APIs match
-the shipped evidence-discovery example: encrypted HouseholdApplication, scoped
-history-import authority, form_context_episode, freeze_context_engine and default
-prepare_context_v3(context-fast). No engine replacement or custom ranker.
+The current experiment contract is the final independent six-case protocol in
+spec.md. Failed preceding drafts are retained in protocol-history.md and evidence.md;
+they are not launch instructions. No new paid experiment is part of stable delivery.
 
-An owner-only comparison harness reads only Spec052's original training traces,
-frozen revision and frozen derived notes from the encrypted vault. It builds each
-memory once, obtains actual per-case context, freezes the complete protocol before
-paid inference, and uses the same SQL agent and objective grader in all conditions.
-The experiment retains full model/tool/context traces in a new encrypted feedback
-ledger with durable cost reservations; summaries contain no questions or answers.
+Use tools/matched_memory_worker.py through Python -I and explicit isolated installed
+original/candidate environments. Call encrypted HouseholdApplication, scoped history
+import, form_context_episode, freeze_context_engine and default prepare_context_v3.
+Do not replace the engine or manually substitute context. Record actual package,
+source and generation identities and withheld/empty context.
 
-Published AtMem2.3.14 is installed from PyPI in a separate environment; candidate
-2.3.15b2 is installed from the retained wheel and identified as unpublished source
-artifact. Each subprocess attests package metadata and implementation digest.
-Existing final cases remain historical; only unused post-drift IDs106–120 are scored.
-The fixed first-three feasibility stop prevents another unproductive campaign.
+The owner-only harness reads original training observations and frozen derived
+notes from the old encrypted study. It receives a sealed independently authored
+cohort, validates its public DB identity and scalar SQL oracles, hashes it before
+inference and stores its exact bytes encrypted. The actor receives id/public only;
+quoted history precedes the separate current_task message. Fixed model/settings,
+read-only tools, budgets and grader apply to all conditions. SQL observations are
+retained before another call; malformed model actions fail without replay. Durable
+reservations preserve exact costs and unknown states.
 
-Verify real workers locally without model calls, then reservation/leakage/version/
-context/grade guards. Freeze source commit before live inference. No release tag
-or efficacy announcement until the actual comparison and required release checks.
-
-Protocol v1 stopped after its first three cases,0/3 for every arm. Before any new
-inference, restore the original public separate-dataset framing and10-second SQL
-limit. v2 uses only109–120, with the same all-zero first-three stop. Policies,
-grader and historical memories stay frozen. Both protocol attempts share the
-original resource ceiling; v1 costs are deducted from v2. Preserve and report both.
-
-v2 completed with a discovered host-adapter defect. Repair message separation and
-in-place malformed-action handling, then use an independent six-task cohort authored
-by Astra from schema without score/policy inspection. Never rescore old questions.
-Reuse the installed-package workers, immutable policies and encrypted ledger; no
-new infrastructure, model, search or learning claim. Freeze the independent cohort
-SHA and all source identities before inference and preserve all prior resources.
+Final evidence is results-independent.json/preregistration-independent.json with
+6/6 accuracy in every arm and no learning claim. Source/API costs and preceding
+failed qualification/recovery remain visible. Frozen source and unpublished b2
+wheel identities stay historical. The current package default is stable2.3.15;
+actual three-OS installation, registry publication and private owner-review website
+handoff follow Spec054. No production qualification, activation or native-host
+performance inference follows from this diagnostic.

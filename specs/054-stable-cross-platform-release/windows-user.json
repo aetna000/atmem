@@ -1,0 +1,51 @@
+{
+  "format": "atmem-installed-user-journey-v1",
+  "version": "2.3.15",
+  "system": "Windows",
+  "os_release": "11",
+  "architecture": "AMD64",
+  "python": "3.12.6",
+  "checks": [
+    {
+      "name": "installed_identity_and_dependencies",
+      "passed": true
+    },
+    {
+      "name": "initialize_local_services",
+      "passed": true,
+      "atbot_running": false,
+      "deterministic_fallback": true
+    },
+    {
+      "name": "loopback_dashboard_and_atflows_http",
+      "passed": true,
+      "bun_version": "1.4.2",
+      "bun_managed": true
+    },
+    {
+      "name": "encrypted_memory_persists_across_processes",
+      "passed": true
+    },
+    {
+      "name": "owner_scoped_encrypted_documents_and_denial",
+      "passed": true
+    },
+    {
+      "name": "encrypted_study_contract_zero_model_calls",
+      "passed": true
+    }
+  ],
+  "claim": "operational_test_only; no learning claim",
+  "release_channel": "stable",
+  "wheel_sha256": "bc59f9e5b2c0305a95c7f6534ae88963c9a4e9a7f0f18453534f642fa0cd3a5c",
+  "active_step": "stop_dashboard",
+  "passed": true,
+  "cleanup": [
+    "own_atbot_stopped",
+    "own_atflows_stopped",
+    "own_dashboard_stopped"
+  ],
+  "seconds": 43.375,
+  "os_build": "26200",
+  "execution": "native Windows11 x64 via owner SSH; fresh isolated Home"
+}

@@ -45,5 +45,6 @@ recorded port. An already open Hermes TUI must be closed and reopened unless
 `--verify-turn` starts a fresh ordinary Hermes process as part of setup.
 
 The end-to-end release qualification is macOS. Linux and WSL use the same local
-provider contract but remain to be qualified for this beta. Native Windows
-credential ACL handling remains pending.
+provider contract but installed Hermes conformance remains unqualified. Native
+Windows Hermes credential ACL qualification remains pending; the general AtMem
+CLI/RAG user journeys do not qualify that host integration.

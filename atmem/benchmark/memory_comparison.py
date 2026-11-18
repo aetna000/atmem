@@ -278,7 +278,7 @@ def run(args):
     script = source / "tools/matched_memory_worker.py"
     identities = {}
     memories = {}
-    for arm, python, version in (("original", args.original_python, "2.3.14"), ("pilot", args.pilot_python, "2.3.15b2")):
+    for arm, python, version in (("original", args.original_python, "2.3.14"), ("pilot", args.pilot_python, args.pilot_version)):
         path = home / arm
         path.mkdir()
         request = {"command": "build", "expected_version": version, "database": str(path / "memory.db"),
@@ -352,6 +352,7 @@ def main():
     for name in ("home", "data", "history", "original-python", "pilot-python"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--source-sha", required=True)
+    parser.add_argument("--pilot-version", default="2.3.15", help="Exact installed candidate; historical b2 replay requires its retained wheel")
     parser.add_argument("--cohort", type=Path, required=True)
     parser.add_argument("--env-file", type=Path)
     parser.add_argument("--allow-paid-public-benchmark", action="store_true")

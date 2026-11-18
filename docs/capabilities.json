@@ -1,6 +1,6 @@
 {
   "product": "memory_control_plane",
-  "version": "2.3.15b2",
+  "version": "2.3.15",
   "development_target": null,
   "release_status": "prerelease",
   "engine": "model_agnostic",

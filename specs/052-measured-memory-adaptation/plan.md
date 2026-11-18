@@ -48,6 +48,6 @@ lack of measured benefit rather than expanding. No forced positive conclusion.
 ## Verification and release
 Meaningful adversarial service/CLI/tool tests; existing feedback and native memory
 regressions; full applicable Python/AtBot/OpenClaw gates; wheel/sdist metadata and
-installed-artifact smoke. Beta target2.3.15b2 with bridge2.3.15-beta.2, unchanged
+installed-artifact smoke. Stable delivery target2.3.15 with bridge2.3.15 underSpec054, unchanged
 AtBot0.1.1 and AtFlows0.1.8. Public review/merge before tag; separate private website
 source-pin PR after public main exists; owner merge/deployment remain pending.

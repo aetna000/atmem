@@ -1,5 +1,10 @@
 # Implementation tasks — Spec 050
 
+Stable2.3.15 scope note (Spec054): implemented opt-in RAG/MCP/outcome surfaces
+may ship; unchecked production-policy qualification, complete installed-host
+conformance and efficacy tasks below remain the broader unfinished roadmap.
+Stable publication does not mark those tasks accepted or permit automatic activation.
+
 Status: implementation in progress. Foundation, generic MCP, outcome capture,
 review and the pure rule compiler/evaluator are locally tested; a tested local host
 candidate resolves the boundary prerequisite. See `implementation-evidence.md`;

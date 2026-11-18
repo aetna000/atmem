@@ -1,6 +1,6 @@
 # Measured memory adaptation — experimental beta
 
-AtMem 2.3.15b2 adds an explicitly invoked study runner and an owner-only SDK for
+AtMem 2.3.15 includes an explicitly invoked study runner and an owner-only SDK for
 measuring a change to memory use. It records actual task outcomes against an
 application-owned objective grader. It does not train model weights, automatically
 improve a running agent, issue production qualification or activate instructions.
@@ -13,7 +13,7 @@ Use Python 3.10–3.13 in a separate environment:
 ```sh
 python -m venv .venv
 . .venv/bin/activate
-python -m pip install 'atmem[code]==2.3.15b2'
+python -m pip install 'atmem[code]==2.3.15'
 python -m pip check
 atmem-memory-study --help
 ```

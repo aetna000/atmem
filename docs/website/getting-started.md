@@ -1,7 +1,7 @@
 # Your first memory
 
-An opt-in [2.3.15b2 beta](../releases/v2.3.15b2.md) adds governed RAG/MCP and verified feedback.
-The stable installation examples below retain 2.3.14. Use the explicit beta pin in the release note to test it.
+Stable [2.3.15](../releases/v2.3.15.md) adds opt-in governed RAG/MCP, verified feedback and experimental memory-policy studies.
+The installation examples below use the current stable package; optional feedback/study features require explicit setup.
 
 
 ## Prerequisites
@@ -11,7 +11,7 @@ does not contact a model, and does not enable agent injection.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install atmem==2.3.14
+python -m pip install atmem==2.3.15
 ```
 
 On Windows, activate with `.venv\Scripts\activate` instead.

@@ -26,8 +26,9 @@ def check(text):
     for boundary in ("local stdio", "outside this server", "not automatically admitted", "Owner", "unknown"):
         if boundary not in text:
             errors.append("missing documented boundary: "+boundary)
-    if "not a released" not in text or "remaining" not in text and "remain" not in text:
-        errors.append("missing development/remaining-work status")
+    status = "not a released" in text or "Production qualification remains incomplete" in text
+    if not status or "remaining" not in text and "remain" not in text:
+        errors.append("missing qualification/remaining-work status")
     return errors
 
 

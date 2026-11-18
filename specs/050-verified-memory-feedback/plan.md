@@ -1,5 +1,10 @@
 # Implementation plan — Spec 050
 
+Stable2.3.15 scope note (Spec054): implemented opt-in RAG/MCP/outcome surfaces
+may ship; unchecked production-policy qualification, complete installed-host
+conformance and efficacy tasks below remain the broader unfinished roadmap.
+Stable publication does not mark those tasks accepted or permit automatic activation.
+
 Status: implementation started; see `implementation-evidence.md` for completed
 work, the tested host-boundary fix and remaining integration. Governing requirements: `spec.md`; source
 review: `research.md`. The implementation remains opt-in and is not released.

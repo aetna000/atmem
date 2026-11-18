@@ -1,6 +1,6 @@
 """Model-free encrypted service example; synthetic success is not learning.
 
-Run from release source after installing atmem==2.3.15b2. No network, paid
+Run from release source after installing atmem==2.3.15. No network, paid
 inference, canonical-memory modification or retained files after exit.
 """
 from pathlib import Path

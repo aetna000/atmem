@@ -1,5 +1,10 @@
 # Spec 050: Verified memory feedback and governed rule promotion
 
+Stable2.3.15 scope note (Spec054): implemented opt-in RAG/MCP/outcome surfaces
+may ship; unchecked production-policy qualification, complete installed-host
+conformance and efficacy tasks below remain the broader unfinished roadmap.
+Stable publication does not mark those tasks accepted or permit automatic activation.
+
 Status: approved for implementation on 2026-11-09; core services, dashboard and pinned host bridge
 implemented and tested. Production qualification and full acceptance remain pending. See `implementation-evidence.md`.
 Owner confirmed feature directory in conversation on 2026-11-09.

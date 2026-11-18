@@ -112,7 +112,7 @@ def run(args):
                     prepared, context, load = None, "", ""
                     if arm != "none":
                         path = home / arm
-                        version = "2.3.14" if arm == "original" else "2.3.15b2"
+                        version = manifest["installed_packages"][arm]["identity"]["version"]
                         python = args.original_python if arm == "original" else args.pilot_python
                         prepared = worker(python, script, path / "home", {"command": "context", "expected_version": version,
                             "database": str(path / "memory.db"), "query": case["public"]["question"], "case_id": case["id"]})

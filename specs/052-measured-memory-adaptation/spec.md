@@ -1,7 +1,9 @@
 # Spec 052 — Measured Memory Adaptation
 
 Status: specified, 2026-11-18. User authorized naming, research, implementation,
-bounded real testing, and beta publication without further questions.
+bounded real testing and publication without further questions. Spec054 now owns
+stable2.3.15 delivery; the earlier b2 candidate was never published. Frozen study
+versions/results remain historical and are not relabelled as stable-wheel benchmarks.
 
 ## Outcome
 An owner can test whether a proposed change to an agent's memory instructions
@@ -58,7 +60,7 @@ result cannot certify learning, production activation, or general efficacy.
   design alternatives, leakage risks and honest Meta comparability. No arbitrary
   evolved code, weight training, or new DolphinBench run in this release.
 - FR-011: Ship SDK and executable study CLI/example with setup, opt-in, safe failure,
-  retention, reproducibility, resources and limitations. Beta publication follows
+  retention, reproducibility, resources and limitations. Stable publication follows
   AGENTS.md and docs/release-coordination.md; website PR stays owner-reviewed.
 
 ## Success criteria and exclusions
@@ -69,7 +71,7 @@ result cannot certify learning, production activation, or general efficacy.
 - SC-003: A comparison table separates our matched pilot from Meta's published
   selected-harness and weight-distillation results. No cross-benchmark score ranking.
 - SC-004: Release/install/upgrade/docs/bridge gates pass for an explicitly versioned
-  beta. Website source refresh is prepared separately and never self-merged.
+  stable2.3.15 (bridge2.3.15). Website source refresh is prepared separately and never self-merged.
 
 No canonical memory schema migration. Existing feedback format-4 opt-in and downgrade
 constraints remain. The existing production qualifier remains inconclusive; this

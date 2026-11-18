@@ -1,3 +1,9 @@
+# Historical unpublished b2 candidate audit
+
+This pre-tag audit is retained as history. The b2 package was never published.
+Current stable2.3.15 release acceptance and live publication receipts belong to
+`specs/054-stable-cross-platform-release/`; pending items below are historical.
+
 # Release evidence — AtMem 2.3.15b2
 
 Status: release candidate under validation; not yet published.

@@ -14,3 +14,4 @@ def test_documented_tools_match_executable_inventory_and_state_limits():
     assert checker.check(text.replace("| `rag_search` |", "| `imaginary_activate` |"))
     assert checker.check(text.replace("2025-11-25", "2099-01-01"))
     assert checker.check(text.replace("outside this server", "everywhere"))
+    assert checker.check(text.replace("Production qualification remains incomplete", "Production learning is proven"))
