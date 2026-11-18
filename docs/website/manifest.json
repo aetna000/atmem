@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "2.3.15b1",
+  "version": "2.3.15",
   "sections": {
     "": "Documentation",
     "portfolio": "Product portfolio",
@@ -12,18 +12,28 @@
   },
   "pages": [
     {
+      "slug": "releases/2.3.15",
+      "title": "AtMem 2.3.15 \u2014 Governed memory tools and measured evaluation",
+      "source": "docs/releases/v2.3.15.md"
+    },
+    {
+      "slug": "reference/measured-memory-adaptation",
+      "title": "Measured memory adaptation (experimental)",
+      "source": "docs/measured-memory-adaptation.md"
+    },
+    {
       "slug": "releases/2.3.15b1",
       "title": "AtMem 2.3.15b1 \u2014 Governed RAG and verified feedback beta",
       "source": "docs/releases/v2.3.15b1.md"
     },
     {
       "slug": "integrations/governed-rag",
-      "title": "Governed RAG and MCP (beta)",
+      "title": "Governed RAG and MCP (opt-in)",
       "source": "docs/governed-rag-and-mcp.md"
     },
     {
       "slug": "reference/verified-feedback",
-      "title": "Verified memory feedback (beta)",
+      "title": "Verified feedback (opt-in)",
       "source": "docs/verified-memory-feedback.md"
     },
     {

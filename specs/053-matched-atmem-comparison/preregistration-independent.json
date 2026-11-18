@@ -1,0 +1,140 @@
+{
+  "format": "atmem-matched-comparison-v1",
+  "protocol_revision": 3,
+  "source_sha": "7f5a603ae08a18cd7875963816fe142ee280ded0",
+  "runner_sha256": "3b53206dbe666fcf9647656f1170edc04e2266138674be6436957167e9e4b416",
+  "worker_sha256": "acf18e375d4ad0fb13ea9273878f2f6e47e8c95e1d2bbf6566b880a33efb1ea8",
+  "agent_and_grader_sha256": "429a82814c121e16d40929401ae1abeafa0ee4387be271bf9bca3abd033706eb",
+  "corpus": {
+    "products.db": "edf8ee80ff125de0bfd6c37a1d185efa9e3037ce28eb1bd1d32ae0829bd264a6",
+    "products_drifted.db": "a53d523f70604be0e4328f3722417895250ac35e1127cc504b609576aee70fad",
+    "questions.json": "f98e515c14b74f4d30c29401fb79cca9ceeb15fe9ee2432b10265a4a649d1771",
+    "questions_post_drift.json": "c05aa6a33def3878e6b655a1cba6454e55e1a9c16ded8c1fe53b7811986a45de"
+  },
+  "settings": {
+    "model": "openai/gpt-6-luna",
+    "seed": 52,
+    "reasoning": {
+      "effort": "low"
+    },
+    "response_format": {
+      "type": "json_object"
+    },
+    "provider": {
+      "only": [
+        "OpenAI"
+      ],
+      "allow_fallbacks": false,
+      "require_parameters": true,
+      "max_price": {
+        "prompt": 0.1,
+        "completion": 0.5
+      }
+    }
+  },
+  "system_sha256": "3a3d8a40533efb638ea5914bd34095981e8e44ec620b3db00ef114a85f2c206e",
+  "task_framing": "The database contains three separate product datasets covering office products, electronics, and musical instruments. Each dataset has its own set of tables. Explore the schema to determine which tables belong to each product category.",
+  "agent_query_seconds": 10,
+  "cohort_sha256": "9b92d8f3923db01d32aa1b192f133518acba7c1aa7149595b6e5d79809a02d76",
+  "cohort_kind": "independently_authored_public_db_diagnostic",
+  "history_sha256": "24b0886bd5246d862713eff88b026fa8ea6c27be2e293f968ffaf5035a3dc723",
+  "revised_policy_sha256": "5f2283d32acc74c68e0862e301b7a50a423189810ec803c8a841dd25e0ff6db5",
+  "revised_notes_sha256": "143d7bc7da39c21c7a2b6a8027dd031b62aa1f35849739219a2f4886554e5391",
+  "installed_packages": {
+    "original": {
+      "identity": {
+        "version": "2.3.14",
+        "module": "/Volumes/MEM0-APFS/atmem-pg/measured-memory-original/lib/python3.12/site-packages/atmem/memory.py",
+        "package_python_sha256": "d4bef8d0aa145da15a1253b53e67809351757facf2b83b153a140ad388c24d57",
+        "memory_module_sha256": "95387811eaa6141bccf1e881d16b485dd19a47f775cb7d54fad070495517b2fe"
+      },
+      "generation": {
+        "generation_id": "gen3_09f77126448c4415b48627b3dc63d3c7",
+        "subject_id": "comparison-owner",
+        "agent_id": "comparison-agent",
+        "workspace_id": "comparison-workspace",
+        "profile_id": "context-fast",
+        "state": "active",
+        "canonical_generation": 0,
+        "configuration_sha256": "sha256:de995c09896abe2eb9f0a5ebbc471a33325f21a716c377c7e3a630fb30811f0b",
+        "verification_json": "{\"orphan_units\":0,\"verified\":true}",
+        "created_at": "2026-11-17T21:51:15.381025+00:00",
+        "verified_at": "2026-11-17T21:51:15.451510+00:00",
+        "activated_at": "2026-11-17T21:51:15.451598+00:00",
+        "retired_at": null,
+        "revision": 66
+      }
+    },
+    "pilot": {
+      "identity": {
+        "version": "2.3.15b2",
+        "module": "/Volumes/MEM0-APFS/atmem-pg/measured-memory-installed/lib/python3.12/site-packages/atmem/memory.py",
+        "package_python_sha256": "0f6f3b4ae2ef90e0ac9732b8ee6b650128cbfe3b5b5cad3f204581de516a5e6d",
+        "memory_module_sha256": "95387811eaa6141bccf1e881d16b485dd19a47f775cb7d54fad070495517b2fe"
+      },
+      "generation": {
+        "generation_id": "gen3_5a2b3c4c3b7141fbb80376e2b5bed528",
+        "subject_id": "comparison-owner",
+        "agent_id": "comparison-agent",
+        "workspace_id": "comparison-workspace",
+        "profile_id": "context-fast",
+        "state": "active",
+        "canonical_generation": 0,
+        "configuration_sha256": "sha256:de995c09896abe2eb9f0a5ebbc471a33325f21a716c377c7e3a630fb30811f0b",
+        "verification_json": "{\"orphan_units\":0,\"verified\":true}",
+        "created_at": "2026-11-17T21:51:15.847522+00:00",
+        "verified_at": "2026-11-17T21:51:15.945320+00:00",
+        "activated_at": "2026-11-17T21:51:15.945411+00:00",
+        "retired_at": null,
+        "revision": 67
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "independent-001",
+      "input_sha256": "3674c3d99334683562b98211c5853bdff7323a0680848c17c44ec1c24248fa41",
+      "target_sha256": "314cb89eb8dc17c6c6b36cd2aed0286e662dc1ce4f1aac53e040c4da8a2ae9d7"
+    },
+    {
+      "id": "independent-002",
+      "input_sha256": "05c80836c20bf73bf042f08bdc2cc4e1dcf5e1da07ea0d43638d26578726301b",
+      "target_sha256": "ba95cc7d1a71826426e11542ad77b989d8927dda728302db1770c32855a47467"
+    },
+    {
+      "id": "independent-003",
+      "input_sha256": "04362b1182b298399d9d110bf9bbf5470e9a63af4f18930b1bfa7f1a49386a57",
+      "target_sha256": "f26b7c2bede9f42563cc361c2ea717f9b0ba7d2c005726ce1996aee5cf33a084"
+    },
+    {
+      "id": "independent-004",
+      "input_sha256": "f443005a37554c34e9fb81c1e8e266300a89e08f7dcb32d79102416d429474bd",
+      "target_sha256": "c298260b8eae189877028bb0a9244d83550a36ae1e9b1b7a2bef34adefcfd217"
+    },
+    {
+      "id": "independent-005",
+      "input_sha256": "a29abffdc824b5ea642de7b757dc2acbb0e27a6a48dda509bddded030771715f",
+      "target_sha256": "489024c96eae1b41c6a584404246598d3fb8a08540a58d0a32a3f5d347517984"
+    },
+    {
+      "id": "independent-006",
+      "input_sha256": "3897c29e7855049ceb27f8a0185920b2bff74248eed1f68940f439ec91d442b1",
+      "target_sha256": "e7046583e3e77d85090e08b97612f2ed3fc427b9d9116473622ada590bfcdd6e"
+    }
+  ],
+  "arms": [
+    "none",
+    "original",
+    "pilot"
+  ],
+  "limits": {
+    "calls": 178,
+    "tokens": 417260,
+    "usd": 1.464583845,
+    "seconds": 1200,
+    "bytes": 12795217
+  },
+  "oracle_preflight_seconds_per_query": 60,
+  "early_stop": "all nine first-three-case outcomes incorrect",
+  "scope": "single-lineage schema-drift diagnostic; forced rejected policy, no online learning"
+}

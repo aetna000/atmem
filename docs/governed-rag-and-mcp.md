@@ -1,7 +1,8 @@
-# Governed documents and host-neutral MCP — development preview
+# Governed documents and host-neutral MCP
 
-Spec 050 implementation in the `2.3.15b1` beta candidate; not a released stable
-feature. Existing memory recall, MCP server and DolphinBench routing stay intact.
+The implemented Spec 050 document/MCP surfaces are explicit opt-ins in stable
+AtMem `2.3.15`. Production qualification remains incomplete. The broader
+qualification/host-enforcement roadmap remains incomplete. Existing memory recall, MCP server and DolphinBench routing stay intact.
 The document service is opt-in. It is not a bundled law corpus or a legal-advice
 system and does not claim current-law completeness.
 

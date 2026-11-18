@@ -87,6 +87,8 @@ def create_fixture(root: Path) -> None:
         "2.3.11",
         "2.3.12",
         "2.3.13",
+        "2.3.14",
+        "2.3.15b1",
     }
     assert manifest["mode"] == "shadow"
     assert manifest["candidate_ids"]

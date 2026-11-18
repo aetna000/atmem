@@ -1,7 +1,7 @@
 # MCP profiles
 
-An opt-in [2.3.15b1 beta](../releases/v2.3.15b1.md) adds governed RAG/MCP and verified feedback.
-The stable installation examples below retain 2.3.14. Use the explicit beta pin in the release note to test it.
+Stable [2.3.15](../releases/v2.3.15.md) adds opt-in governed RAG/MCP, verified feedback and experimental memory-policy studies.
+The installation examples below use the current stable package; optional feedback/study features require explicit setup.
 
 
 MCP is a tool transport, not proof that a model received returned content.

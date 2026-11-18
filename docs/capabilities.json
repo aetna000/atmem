@@ -1,8 +1,8 @@
 {
   "product": "memory_control_plane",
-  "version": "2.3.15b1",
+  "version": "2.3.15",
   "development_target": null,
-  "release_status": "prerelease",
+  "release_status": "stable",
   "engine": "model_agnostic",
   "canonical_authority": "atmem_only",
   "intelligence_companion": {
@@ -177,14 +177,14 @@
     }
   },
   "governed_rag": {
-    "status": "beta_preview",
+    "status": "opt_in",
     "default_enabled": false,
     "transport": "local_stdio",
     "owner_registration_required": true,
     "reference_index": "encrypted_evidence_vault_and_ram_fts"
   },
   "verified_memory_feedback": {
-    "status": "beta_preview",
+    "status": "opt_in",
     "default_enabled": false,
     "production_qualification": "inconclusive_only",
     "enforcement_boundary": "registered_owned_proxy_only",
