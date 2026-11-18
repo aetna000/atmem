@@ -42,7 +42,8 @@ qualify an experimental policy or an untested host integration.
 - FR-007: After public main exists, pin its immutable SHA in the private website,
   refresh stable metadata/content lock/claims and run build/gates/docs/browser checks.
   Push an owner-review PR through the private repository's existing author/SSH remote.
-  Owner-only merge and validated-main deployment remain separate; do not self-merge,
+  Honor the hosted dependency audit; report an unpatched upstream blocker without
+  weakening it. Owner-only merge and validated-main deployment remain separate; do not self-merge,
   deploy a feature branch or call pending documentation live.
 - FR-008: No further paid memory-quality experiment, model training, new DolphinBench
   run, arbitrary policy activation or publication of the dirty Spec051/pgvector work.
@@ -57,3 +58,6 @@ qualify an experimental policy or an untested host integration.
   and verified after all applicable gates pass on the reviewed source.
 - SC-004: The website refresh is a tested pushed PR; final report separates package
   publication, owner merge and live deployment and explains why this release matters.
+
+Publication status: stable package verified; website readiness remains blocked.
+See publication.md/publication.json for post-tag evidence and exact limits.

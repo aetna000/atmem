@@ -28,3 +28,8 @@ the existing SSH remote/author. No private self-merge or local feature deploymen
 Evidence: specs/054-stable-cross-platform-release/evidence.md plus content-free
 platform receipts. Secrets and detailed installer logs remain owner-private in the
 external task directory. Every publication state is verified independently.
+
+Post-tag status: package and registries verified. The private website functional
+checks pass, but its hosted dependency audit is blocked on unpatched Picomatch.
+Do not waive the audit or replace the framework merely to clear the check; retain
+the tested owner-review PR and report the exact external blocker.
