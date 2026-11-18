@@ -29,7 +29,9 @@ Evidence: specs/054-stable-cross-platform-release/evidence.md plus content-free
 platform receipts. Secrets and detailed installer logs remain owner-private in the
 external task directory. Every publication state is verified independently.
 
-Post-tag status: package and registries verified. The private website functional
-checks pass, but its hosted dependency audit is blocked on unpatched Picomatch.
-Do not waive the audit or replace the framework merely to clear the check; retain
-the tested owner-review PR and report the exact external blocker.
+Post-tag status: package and registries verified. The original private website
+dependency audit blocker was remediated with a tested local source patch and
+additional source/advisory gates. All private main validation passed. The owner
+merged the PR and explicitly authorized Hosting publication; the checksum-verified
+main artifact was deployed and both live domains were verified. No audit waiver,
+private self-merge or local feature-branch deployment occurred. See publication.json.

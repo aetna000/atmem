@@ -59,5 +59,6 @@ qualify an experimental policy or an untested host integration.
 - SC-004: The website refresh is a tested pushed PR; final report separates package
   publication, owner merge and live deployment and explains why this release matters.
 
-Publication status: stable package verified; website readiness remains blocked.
+Publication status: stable package and website publication verified. The owner
+merged the private PR and explicitly authorized the validated-main deployment.
 See publication.md/publication.json for post-tag evidence and exact limits.

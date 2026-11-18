@@ -54,23 +54,32 @@ zero-model SDK contract. AtBot selected its expected unconfigured deterministic
 fallback. These are operational checks, not native GUI, model quality, full host
 conformance or learning evidence. Linux is a container, not a bare-metal claim.
 
-## Website handoff remains blocked
+## Website publication verified
 
-The private source-pin PR is pushed with the immutable release-main source,
-72 AtMem pages, six unchanged AI Architect guides and stable 2.3.15 metadata. Normal
-import, 109-page build, all static gates, 70 docs tests and 84 browser tests passed.
-The existing hosted npm audit failed. Astro was updated from 7.3.3 to 7.4.12 for its
-two direct advisories; the complete functional checks passed again on that update.
+The initial private website audit failed on Picomatch GHSA-fc5q-39xc-vjpf.
+Astro's direct advisories were patched; the remaining issue was subsequently
+remediated with a verified local source patch, enforced source/attack checks and
+upstream advisory monitoring. The audit threshold remained unchanged. The final
+PR and merged-main validation passed all build, security, docs and browser checks.
 
-Hosted validation remains blocked on
-[Picomatch GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf).
-As verified 2026-11-18, registry-latest 4.0.7 is affected and no patched version is
-listed. The audit's ten affected package entries derive from that root advisory.
-No audit threshold/exception, framework downgrade or package-name substitution
-was introduced. T005 remains open. Only the owner merges the private PR; no owner
-merge or live deployment occurred. The package is published; the coordinated
-website rollout is incomplete. A later deployment must use the checksum-verified
-artifact from validated private main, per repository instructions.
+The owner merged the private PR at main commit
+`86a8ff50c0283a2c5c98fc7fea289bc42f030b9f` and explicitly requested deployment.
+Validation run `44305719623` succeeded for that exact main commit.
+Its `validated-website` artifact checksum passed:
+`552721f05a3ce39003a459113b4ebe7310a14632ffbb9ac0749ab3f91c30d814`.
+Firebase CLI deployed Hosting only from the extracted validated artifact to
+`atmemai`; Hosting version `28a21b10ca78ece9`.
+No local rebuild, PR artifact, Firestore rule deployment or private self-merge was used.
+
+As verified `2026-11-18T12:47:41.156295+00:00`, 18 live URLs on
+https://atmem.ai and https://atmemai.web.app returned HTTP 200 and matched the
+validated artifact byte-for-byte. Homepage, docs, getting started, AtFlows,
+governed retrieval, Hermes, study reference, stable release and search data passed.
+Both domains' live browser checks passed search-result navigation, getting-started
+content/copy controls and stable release rendering without page errors.
+Docs display stable 2.3.15 and immutable public source
+`bca4e925fc89a3c01b6c95fba4460f59749ce8f5`. T005 is complete. The package,
+owner website merge and live deployment are now independently verified.
 
 ## Why this release matters and what it does not establish
 

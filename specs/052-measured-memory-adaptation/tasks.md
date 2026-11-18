@@ -13,9 +13,10 @@
 ## Delivery
 - [x] [T008] Add `docs/measured-memory-adaptation.md`, SDK/CLI example, affected guide updates and stable `docs/releases/v2.3.15.md` (the unpublished b2 draft is retained as history) (FR-011).
 - [x] [T009] Version alignment, Python/companion/OpenClaw/build/installed-artifact/docs gates and public review in `specs/054-stable-cross-platform-release/evidence.md` (the earlier b2 audit remains historical) (SC-004).
-- [x] [T010] Publish and verify stable2.3.15 GitHub/PyPI/npm; prepare private website source-pin PR, record owner-review/deployment pending (SC-004).
+- [x] [T010] Publish and verify stable2.3.15 GitHub/PyPI/npm; prepare private website source-pin PR, record website publication states (SC-004).
 
 Stable package delivery verified in Spec054 publication.json. The private website
-source-pin PR is prepared and functionally tested; its hosted dependency audit,
-owner merge and live deployment remain pending as explicitly recorded there.
+source-pin PR passed full validation, was merged by the owner, and was deployed
+from its checksum-verified validated-main artifact. Both live domains passed
+artifact/source/version and browser checks, as recorded there.
 No failed or inconclusive experiment is promoted to a learning claim.
