@@ -70,3 +70,9 @@ Private website source pin/version/claim refresh is a separate owner-review PR
 after public main exists. No private merge or live deployment is performed by
 this release lead. Final publication receipts belong to the GitHub release and
 workflow; a source-freeze checklist is not a claim that publishing already occurred.
+
+The first hosted Python3.10 full run found one missed documentation metadata
+transition: capabilities.json still labeled the package prerelease. Its 4,344
+other tests passed (203 skipped). The status is corrected to stable and optional
+interfaces are labeled opt_in, retaining incomplete production qualification.
+The documentation regression and applicable hosted gates must pass on the fix.
