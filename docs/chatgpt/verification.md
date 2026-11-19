@@ -164,3 +164,38 @@ reviewer Firebase credential sign-in returned 200, and all four public cloud
 policy/support routes returned 200. This does not prove delivery to a real
 mailbox or completion inside the owner's ChatGPT session. Deployment and live
 post-update results are recorded separately below when complete.
+
+### Deployed repair and live evidence
+
+- Source commit: `0220516041b998d04657a52eec3f5f02f5ae50e4`; repair
+  [PR #40](https://github.com/aetna000/atmem/pull/40) targets the existing hosted
+  feature branch. Documentation follow-up commits do not change this image.
+- Cloud Build: `431413d9-1c50-4069-b06f-9a682d37a1b5`, SUCCESS. Remote context
+  contained only committed runtime files, Dockerfile and required license/build
+  metadata (394 files, 4.5 MiB); no working-tree state or credentials.
+- Image: `us-central1-docker.pkg.dev/atmemai/atmem-chatgpt/mcp@sha256:ca404e07086ba4fba05d47177091ca07ef1e9aa9dd3c57a486ec1e0d533445f3`.
+- Cloud Run: `atmem-chatgpt-00010-b7s`, 100% traffic. Existing service, named
+  database, config secret version 3, master-key secret version 1, max instance 1,
+  512 MiB and existing IAM retained. Previous compatible revision
+  `atmem-chatgpt-00009-zb5` remains available for rollback. No schema/key migration.
+- Canonical account entry: https://atmem-chatgpt-nvwvv4d7sa-uc.a.run.app/login .
+  The existing plugin 0.1.2 continues to use the same `/mcp` endpoint; no native
+  package release or plugin ZIP replacement was needed for this service repair.
+- Live synthetic checks passed: all four account forms, verified reviewer login,
+  browser logout, OAuth discovery, official Codex CIMD + PKCE authorization/token
+  exchange, authenticated MCP `list_memory_scopes`, revocation and subsequent
+  token rejection. Test grants were revoked; no memory content was written.
+- Live Playwright: mobile and desktop create-account/recovery navigation, rejected
+  password with usable retry, correct login and logout, with JavaScript disabled.
+- Existing synthetic account signup probe returned Firebase `EMAIL_EXISTS`; it
+  created no identity and sent no mail. This is not new-mailbox delivery evidence.
+- Hosted [CI run 44520557887](https://github.com/aetna000/atmem/actions/runs/44520557887)
+  passed. Broad repository CI is separate and was not all green at verification
+  time (including failed OpenClaw jobs); this repair does not claim full branch
+  merge readiness.
+
+The full new-user verification/reset lifecycle was exercised against real local
+Firebase emulators. Actual email receipt by the owner's mailbox and reconnect
+inside the owner's ChatGPT session remain unverified; neither is replaced by
+the synthetic live/browser checks. No owner password, OAuth token, email action
+code or encryption key is included in these receipts.
