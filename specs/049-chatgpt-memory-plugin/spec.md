@@ -117,3 +117,15 @@ identity/legal attestations and actual account interaction cannot be invented.
 - FR-020: Preserve truthful submission state: actual ChatGPT review cases/demo,
   verified publisher, country/commerce decisions, policy approval and portal scans
   remain unverified until performed. Hosting alone is not a directory release.
+
+## Account access repair (19 November 2026)
+FR-021: Minimal account access pages must work without an active OAuth request:
+service entry, sign-in, registration, verification resend, password reset and
+browser sign-out. Registration retains explicit cloud-storage consent and a
+12-character minimum. Verified email is required before a browser session or
+OAuth grant is issued. Successful standalone sign-in grants no app access; the
+user returns to ChatGPT to approve an exact OAuth connection. Invalid/expired
+OAuth contexts fail closed with links to independent account recovery. Explicit
+credentials must be checked even when a different browser session exists.
+Cross-origin/CSRF protections, email throttles, account isolation and deletion
+fences remain required. Error pages must offer a usable retry/recovery path.

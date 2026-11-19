@@ -142,3 +142,25 @@ Public archive generation refuses missing publisher/demo/verification evidence.
 Source CI: push checks were superseded/cancelled when PR checks started. The
 current PR run had no failures at last inspection, with some platform jobs still
 running. No source merge or published native/package tag has been performed.
+
+## 19 November 2026: account access repair
+
+The deployed source previously required a live OAuth nonce even to register or
+recover access. Direct account links returned a dead end. Independent account
+pages now address this, while expired/forged OAuth requests still fail closed.
+Login errors link to recovery; opening another account page no longer rotates
+CSRF unexpectedly. Explicit credentials are validated even with a browser session.
+
+Local real Firebase Auth/Firestore emulator suite: **43 passed**, no skips,
+including standalone signup/consent, unverified-user rejection, verification
+resend/consumption, password reset and old-password rejection, browser sign-out,
+CSRF/Origin checks, stale linking and existing OAuth/MCP/deletion/isolation tests.
+Playwright exercised mobile and desktop account navigation/login/retry/logout
+with JavaScript disabled, plus the existing consent and native callback tests.
+Native regressions: **50 passed, 1 platform-specific skip**.
+
+Live preflight: actual ChatGPT authorization requests returned HTTP 302, dedicated
+reviewer Firebase credential sign-in returned 200, and all four public cloud
+policy/support routes returned 200. This does not prove delivery to a real
+mailbox or completion inside the owner's ChatGPT session. Deployment and live
+post-update results are recorded separately below when complete.

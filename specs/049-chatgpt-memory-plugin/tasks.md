@@ -48,3 +48,8 @@ and 1 platform-specific skip. Final cloud deployment/managed checks pending.
 T019 completion: pinned public-completion image deployed, 10 managed new-feature
 checks passed, and a private test installation created. Public source PR/CI status
 is reported separately; T020 stays open until actual host and publisher gates pass.
+
+## Account access repair
+- [x] T021 Add independent sign-in/signup/recovery/logout and usable expired-link/error navigation (FR-021).
+- [x] T022 Pass real Firebase account lifecycle, OAuth/MCP regressions and mobile/desktop browser tests.
+- [ ] T023 Deploy a commit-bound image to the existing Cloud Run service and verify live synthetic login and discovery; record mailbox/actual ChatGPT limitations honestly.

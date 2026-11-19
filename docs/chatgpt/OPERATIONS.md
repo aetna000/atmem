@@ -111,3 +111,19 @@ arguments) to create Console incidents for repeated HTTP 5xx responses. It has n
 notification channel: select and verify an owner-controlled destination before
 relying on paging. Numeric billing budget/alert settings still need an operator
 choice; no amount is invented or an existing website billing limit changed.
+
+## Independent account access
+The hosted service exposes `/login`, `/register`, `/verify-email` and
+`/reset-password` without requiring a live ChatGPT OAuth request. Its root redirects
+to sign-in. Registration requires cloud-storage consent and a password of at least
+12 characters. Verify the Firebase email before signing in. If an email does not
+arrive, check spam and use Resend verification with the same email/password;
+requesting another email is throttled for two minutes. Password reset completes
+in Firebase's email action handler, then the user signs in again.
+
+A standalone sign-in confirms account access only. Return to ChatGPT and select
+Connect/Reconnect to approve the app's OAuth access; individual memory changes
+still require separate approval. Expired connection links offer independent
+account access and require a fresh ChatGPT connection. Browser sign-out is a
+CSRF-protected POST and removes only that browser session. It does not revoke
+existing ChatGPT OAuth grants or delete memory. No dashboard is introduced.
