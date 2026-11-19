@@ -2,6 +2,7 @@
 
 import json
 import os
+import sqlite3
 from pathlib import Path
 import subprocess
 import sys
@@ -10,6 +11,12 @@ from http.cookiejar import CookieJar
 from urllib.request import build_opener, HTTPCookieProcessor, Request
 
 import pytest
+
+
+# Scan a complete planted value, not four bytes that may occur naturally in
+# random ciphertext or its base64 representation. Retain the actual roundtrip
+# and independent plain-SQLite rejection checks below.
+FORMATTER_VALUE = "Ruff PRIVATE-CODE-MARKER-83c2e849e7834fe4b361a28d"
 
 
 def cli(*args, cwd):
@@ -42,7 +49,7 @@ def installed_project(tmp_path):
     try:
         scope = CodeScope("local", project, "shared", "codex")
         event = CodeObservation("event-1", "session-1", "turn-1", "codex", "user_turn",
-                                "Remember that my preferred formatter is Ruff.", "2026-10-14T10:00:00+00:00", "user:turn-1", None, scope)
+                                f"Remember that my preferred formatter is {FORMATTER_VALUE}.", "2026-10-14T10:00:00+00:00", "user:turn-1", None, scope)
         assert CodeFormation(memory).form(event)["formed"]
     finally:
         memory.close()
@@ -52,14 +59,14 @@ def installed_project(tmp_path):
 def test_installed_cli_encrypted_portable_roundtrip(installed_project, tmp_path):
     root, database, project = installed_project
     found = cli("search", "formatter", "--project", root, "--db", database, cwd=tmp_path)
-    assert "Ruff" in found["records"][0]["content"]
+    assert FORMATTER_VALUE in found["records"][0]["content"]
     keys = tmp_path / "bundle-keys"
     cli("keygen", keys, cwd=tmp_path)
     bundle = tmp_path / "project.bundle.json"
     cli("export", bundle, "--project", root, "--db", database,
         "--recipient-key", keys / "recipient.public", "--signing-key", keys / "signing.secret",
         "--signing-public-key", keys / "signing.public", cwd=tmp_path)
-    assert b"Ruff" not in bundle.read_bytes()
+    assert FORMATTER_VALUE.encode() not in bundle.read_bytes()
     from atmem.service.household import HouseholdApplication
     target_db = tmp_path / "target.db"
     HouseholdApplication.initialize(target_db, encrypted=True)
@@ -73,8 +80,17 @@ def test_installed_cli_encrypted_portable_roundtrip(installed_project, tmp_path)
     assert imported["imported"] and imported["hosts_enabled"] is False
     restored = cli("search", "formatter", "--project", target_root, "--db", target_db, cwd=tmp_path)
     assert restored["records"][0]["id"] == found["records"][0]["id"]
-    assert "Ruff" in restored["records"][0]["content"]
-    assert b"Ruff" not in database.read_bytes() and b"Ruff" not in target_db.read_bytes()
+    assert FORMATTER_VALUE in restored["records"][0]["content"]
+    for path in (database, target_db):
+        raw=path.read_bytes()
+        assert FORMATTER_VALUE.encode() not in raw
+        assert not raw.startswith(b"SQLite format 3")
+        connection=sqlite3.connect(path)
+        try:
+            with pytest.raises(sqlite3.DatabaseError):
+                connection.execute("SELECT count(*) FROM sqlite_master").fetchone()
+        finally:
+            connection.close()
 
 
 @pytest.fixture
