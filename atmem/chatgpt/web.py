@@ -8,6 +8,7 @@ import secrets
 from pathlib import Path
 import re
 import time
+import httpx
 from datetime import datetime,timezone
 from urllib.parse import urlsplit, quote
 
@@ -83,7 +84,8 @@ class BoundaryMiddleware(BaseHTTPMiddleware):
 
 def install_routes(mcp,settings,repository,provider,identity,service):
     def csrf_form(request):
-        token=secrets.token_urlsafe(32);request.session['csrf']=token
+        # Visiting recovery in another tab must not invalidate the sign-in form.
+        token=request.session.setdefault('csrf',secrets.token_urlsafe(32))
         return '<input type="hidden" name="csrf" value="'+token+'">'
 
     def check_csrf(request,form):
@@ -93,7 +95,7 @@ def install_routes(mcp,settings,repository,provider,identity,service):
     async def browser_user(request,form=None):
         session_id=request.session.get('human_session')
         saved=repository.get_control('browser',session_id) if session_id else None
-        if saved and settings.permits_account(saved['subject']):return saved['subject']
+        if saved and (form is None or ('email' not in form and 'password' not in form)) and settings.permits_account(saved['subject']):return saved['subject']
         if form is None:raise Denied('human_sign_in_required')
         account=await identity.sign_in(str(form.get('email','')),str(form.get('password','')))
         session_id=secrets.token_urlsafe(32)
@@ -103,6 +105,47 @@ def install_routes(mcp,settings,repository,provider,identity,service):
 
     def credentials():
         return '<label>Email <input type="email" name="email" required autocomplete="username" maxlength="254"></label><label>Password <input type="password" name="password" required autocomplete="current-password" maxlength="256"></label>'
+
+    def account_links(nonce=''):
+        suffix='?request='+nonce if nonce else ''
+        login='/connect/'+nonce if nonce else '/login'
+        return (f'<nav class="links" aria-label="Account help"><a href="{login}">Sign in</a>'
+                f'<a href="/register{suffix}">Create account</a>'
+                f'<a href="/reset-password{suffix}">Reset password</a>'
+                f'<a href="/verify-email{suffix}">Resend verification</a></nav>')
+
+    @mcp.custom_route('/',methods=['GET'])
+    async def account_entry(request:Request):
+        return RedirectResponse(settings.issuer+'/login',status_code=303)
+
+    @mcp.custom_route('/login',methods=['GET','POST'])
+    async def login(request:Request):
+        body='<p>Sign in to your AtMem Cloud account. To connect memory to ChatGPT, return to your chat and choose Connect or Reconnect.</p>'
+        status=200
+        if request.method=='POST':
+            try:
+                form=await request.form();check_csrf(request,form)
+                await browser_user(request,form)
+                request.session['csrf']=secrets.token_urlsafe(32)
+                return page('Signed in to AtMem','<p>Your account is ready. Return to ChatGPT and connect AtMem to approve memory access. Signing in here does not grant an app access.</p><form method="post" action="/logout">'+csrf_form(request)+'<button>Sign out</button></form>')
+            except (ValueError,Denied) as error:
+                status=403
+                body='<p role="alert">'+('Verify your email before signing in. Use Resend verification below if needed.' if str(error)=='verify_email_before_connecting' else 'Sign-in failed. Check your email and password, or reset your password below.')+'</p>'
+            except httpx.HTTPError:
+                status=503;body='<p role="alert">Account sign-in is temporarily unavailable. Please try again.</p>'
+        links=account_links() if settings.access_policy=='registered' else ''
+        return page('Sign in to AtMem',body+'<form method="post">'+csrf_form(request)+credentials()+'<button>Sign in</button></form>'+links,status)
+
+    @mcp.custom_route('/logout',methods=['POST'])
+    async def logout(request:Request):
+        try:
+            form=await request.form();check_csrf(request,form)
+            session_id=request.session.get('human_session')
+            if session_id:repository.consume_control('browser',session_id)
+            request.session.clear()
+            return page('Signed out','<p>You have signed out of this browser. Existing ChatGPT connections are separate; disconnect AtMem in ChatGPT to remove that connection.</p><p><a href="/login">Sign in</a></p>')
+        except Denied:
+            return page('Sign-out rejected','<p>Reload the sign-in page and try again.</p>',403)
 
     @mcp.custom_route('/account/delete',methods=['GET','POST'])
     async def delete_account(request:Request):
@@ -171,7 +214,7 @@ def install_routes(mcp,settings,repository,provider,identity,service):
         pending=repository.get_control('authorize',nonce)
         if pending is None:
             return page('This sign-in request has ended',
-                        '<p>Return to the chat that requested AtMem. Ask AtMem again and choose the sign-in or reconnect action to start a fresh request.</p>', 400)
+                        '<p>Return to the chat that requested AtMem. Ask AtMem again and choose the sign-in or reconnect action to start a fresh request. You can still create or recover your account below.</p>'+account_links(), 400)
         if request.method=='GET':
             native = pending['client_id'] == CODEX_CLIENT_ID
             client = 'Codex' if native else 'your app'
@@ -205,8 +248,10 @@ def install_routes(mcp,settings,repository,provider,identity,service):
             return RedirectResponse(callback,status_code=303)
         except (ValueError,Denied) as error:
             if str(error)=='verify_email_before_connecting':
-                return page('Verify your email','Verify your Firebase email address before connecting. Return to the connection page to resend verification if needed.',403)
-            return page('Connection rejected','Sign-in failed, consent expired or the request was invalid. Start account linking again.',403)
+                return page('Verify your email','<p>Verify your email address before connecting. Resend verification below, then return to sign in.</p>'+account_links(nonce),403)
+            return page('Connection rejected','<p>Sign-in failed, consent expired or the request was invalid. Retry sign-in or recover your account below.</p>'+account_links(nonce),403)
+        except httpx.HTTPError:
+            return page('Sign-in temporarily unavailable','<p>Please try signing in again.</p>'+account_links(nonce),503)
 
     @mcp.custom_route('/connection/status/{receipt}',methods=['GET'])
     async def connection_status(request:Request):
@@ -235,8 +280,10 @@ def install_routes(mcp,settings,repository,provider,identity,service):
     @mcp.custom_route('/reset-password',methods=['GET','POST'])
     async def account_access(request:Request):
         nonce=request.query_params.get('request','')
-        if settings.access_policy!='registered' or not re.fullmatch(r'[A-Za-z0-9_-]{20,100}',nonce) or repository.get_control('authorize',nonce) is None:
-            return page('Start from ChatGPT','Begin connecting AtMem in ChatGPT to register or recover access.',400)
+        if settings.access_policy!='registered':
+            return page('Registration unavailable','<p>This service currently accepts invited accounts only.</p><a href="/login">Sign in</a>',400)
+        if 'request' in request.query_params and (not re.fullmatch(r'[A-Za-z0-9_-]{20,100}',nonce) or repository.get_control('authorize',nonce) is None):
+            return page('This sign-in request has ended','<p>You can create or recover your account below, then start a fresh connection from ChatGPT.</p>'+account_links(),400)
         operation=request.url.path
         title={'/register':'Register for AtMem','/verify-email':'Resend verification','/reset-password':'Reset password'}[operation]
         if request.method=='GET':
@@ -244,20 +291,23 @@ def install_routes(mcp,settings,repository,provider,identity,service):
             notice='<p>AtMem stores only memories you explicitly save. This is a cloud service: encrypted memory is held in Google Cloud, the operator holds the key, and requested results are sent to ChatGPT. Firebase manages account credentials. No conversations are automatically captured.</p>'
             if operation=='/register':
                 inputs+='<p>Use a password of at least 12 characters.</p><label><input type="checkbox" name="understood" value="yes" required> I understand this cloud data flow and want to create an account.</label>'
-            return page(title,notice+'<form method="post">'+csrf_form(request)+inputs+'<button>'+title+'</button></form><p><a href="/connect/'+nonce+'">Return to sign in</a></p>')
+            if operation=='/register':inputs=inputs.replace('autocomplete="current-password"','autocomplete="new-password"').replace('name="password" required','name="password" minlength="12" required')
+            return page(title,notice+'<form method="post">'+csrf_form(request)+inputs+'<button>'+title+'</button></form>'+account_links(nonce))
         try:
             form=await request.form();check_csrf(request,form)
             email=str(form.get('email','')).strip();password=str(form.get('password',''))
             if not 3<=len(email)<=254:raise ValueError('invalid_email')
             if operation=='/register' and (form.get('understood')!='yes' or not 12<=len(password)<=256):raise ValueError('consent_or_password_required')
             if not repository.claim_email_slot(email):
-                return page('Please wait','Wait two minutes before requesting another account email.',429)
+                return page('Please wait','<p>Wait two minutes before requesting another account email.</p>'+account_links(nonce),429)
             if operation=='/register':await identity.register(email,password)
             elif operation=='/verify-email':await identity.resend_verification(email,password)
             else:await identity.reset_password(email)
-            return page('Check your email','<p>If the account details are eligible, Firebase will send the requested email. Complete its steps, then sign in to connect. If linking expires, start again from ChatGPT.</p><p><a href="/connect/'+nonce+'">Return to sign in</a></p>')
+            return page('Check your email','<p>If the account details are eligible, Firebase will send the requested email. Check your inbox and spam folder. Complete its steps, then sign in to connect. If linking expires, start again from ChatGPT.</p>'+account_links(nonce))
         except (ValueError,Denied):
-            return page('Request rejected','Check the supplied details and cloud consent. No memory access was granted.',400)
+            return page('Request rejected','<p>Check your email, password and cloud consent. Registration requires at least 12 password characters. No memory access was granted.</p>'+account_links(nonce),400)
+        except httpx.HTTPError:
+            return page('Account service temporarily unavailable','<p>Please try again. If you already created an account, use Resend verification.</p>'+account_links(nonce),503)
 
     @mcp.custom_route('/approve/{action_id}',methods=['GET','POST'])
     async def approve(request:Request):

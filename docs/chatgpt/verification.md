@@ -142,3 +142,60 @@ Public archive generation refuses missing publisher/demo/verification evidence.
 Source CI: push checks were superseded/cancelled when PR checks started. The
 current PR run had no failures at last inspection, with some platform jobs still
 running. No source merge or published native/package tag has been performed.
+
+## 19 November 2026: account access repair
+
+The deployed source previously required a live OAuth nonce even to register or
+recover access. Direct account links returned a dead end. Independent account
+pages now address this, while expired/forged OAuth requests still fail closed.
+Login errors link to recovery; opening another account page no longer rotates
+CSRF unexpectedly. Explicit credentials are validated even with a browser session.
+
+Local real Firebase Auth/Firestore emulator suite: **43 passed**, no skips,
+including standalone signup/consent, unverified-user rejection, verification
+resend/consumption, password reset and old-password rejection, browser sign-out,
+CSRF/Origin checks, stale linking and existing OAuth/MCP/deletion/isolation tests.
+Playwright exercised mobile and desktop account navigation/login/retry/logout
+with JavaScript disabled, plus the existing consent and native callback tests.
+Native regressions: **50 passed, 1 platform-specific skip**.
+
+Live preflight: actual ChatGPT authorization requests returned HTTP 302, dedicated
+reviewer Firebase credential sign-in returned 200, and all four public cloud
+policy/support routes returned 200. This does not prove delivery to a real
+mailbox or completion inside the owner's ChatGPT session. Deployment and live
+post-update results are recorded separately below when complete.
+
+### Deployed repair and live evidence
+
+- Source commit: `0220516041b998d04657a52eec3f5f02f5ae50e4`; repair
+  [PR #40](https://github.com/aetna000/atmem/pull/40) targets the existing hosted
+  feature branch. Documentation follow-up commits do not change this image.
+- Cloud Build: `431413d9-1c50-4069-b06f-9a682d37a1b5`, SUCCESS. Remote context
+  contained only committed runtime files, Dockerfile and required license/build
+  metadata (394 files, 4.5 MiB); no working-tree state or credentials.
+- Image: `us-central1-docker.pkg.dev/atmemai/atmem-chatgpt/mcp@sha256:ca404e07086ba4fba05d47177091ca07ef1e9aa9dd3c57a486ec1e0d533445f3`.
+- Cloud Run: `atmem-chatgpt-00010-b7s`, 100% traffic. Existing service, named
+  database, config secret version 3, master-key secret version 1, max instance 1,
+  512 MiB and existing IAM retained. Previous compatible revision
+  `atmem-chatgpt-00009-zb5` remains available for rollback. No schema/key migration.
+- Canonical account entry: https://atmem-chatgpt-nvwvv4d7sa-uc.a.run.app/login .
+  The existing plugin 0.1.2 continues to use the same `/mcp` endpoint; no native
+  package release or plugin ZIP replacement was needed for this service repair.
+- Live synthetic checks passed: all four account forms, verified reviewer login,
+  browser logout, OAuth discovery, official Codex CIMD + PKCE authorization/token
+  exchange, authenticated MCP `list_memory_scopes`, revocation and subsequent
+  token rejection. Test grants were revoked; no memory content was written.
+- Live Playwright: mobile and desktop create-account/recovery navigation, rejected
+  password with usable retry, correct login and logout, with JavaScript disabled.
+- Existing synthetic account signup probe returned Firebase `EMAIL_EXISTS`; it
+  created no identity and sent no mail. This is not new-mailbox delivery evidence.
+- Hosted [CI run 44520557887](https://github.com/aetna000/atmem/actions/runs/44520557887)
+  passed. Broad repository CI is separate and was not all green at verification
+  time (including failed OpenClaw jobs); this repair does not claim full branch
+  merge readiness.
+
+The full new-user verification/reset lifecycle was exercised against real local
+Firebase emulators. Actual email receipt by the owner's mailbox and reconnect
+inside the owner's ChatGPT session remain unverified; neither is replaced by
+the synthetic live/browser checks. No owner password, OAuth token, email action
+code or encryption key is included in these receipts.

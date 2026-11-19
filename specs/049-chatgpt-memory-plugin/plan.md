@@ -93,3 +93,14 @@ status. Product is ChatGPT access only; no account dashboard is introduced.
 Authoritative policies and legal decisions still require owner review. Existing
 website data/rules/branding remain intact. Public metadata uses only verified
 live URLs; a candidate archive with remaining gaps is never submission-ready.
+
+## Account access repair
+Allow the same minimal registration/recovery pages without an OAuth nonce. An
+explicit nonce must still resolve to live server-side authorization state; never
+accept arbitrary return URLs. Add standalone login and POST-only CSRF-protected
+logout. Keep OAuth consent and per-memory approval independent. Preserve CSRF
+across page GETs so a recovery tab does not invalidate sign-in. Validate explicit
+credentials rather than silently selecting an existing browser account. Test
+real Auth/Firestore signup, email verification, password reset, logout and the
+existing OAuth/MCP lifecycle; exercise mobile/desktop recovery without JavaScript.
+Deploy only the existing Cloud Run service with its current key/config versions.
