@@ -59,3 +59,31 @@ then correlate the preceding authorize/form GET and any earlier consent POSTs.
 The browser request headers contained cookies; do not export or commit raw HAR,
 request headers or form payloads. No passwords, cookies or full nonce URLs are
 retained in this note. Cloud logs remain inaccessible from this task's terminal.
+
+## Cloud Run correlation and browser handoff repair
+
+Cloud Logging matched the captured request on revision
+`atmem-chatgpt-oauth-e1c5411`. The authorization endpoint redirected at
+05:38:58 UTC, and the consent form for the captured request loaded at 05:38:59.
+At 05:39:18 the first POST returned 303 and the application recorded
+`oauth_authorization_completed approved=True`. At 05:39:19 the second POST
+to the same consent request returned 400. No token exchange followed that
+attempt. The first submission consumed consent successfully.
+
+Chromium reproduced a failure with that revision's source and a local callback
+that redirects to a different origin. The browser reached the registered
+callback, then blocked its next navigation under the consent page's
+`form-action` policy. The Cloud Run logs establish the repeated submission
+and absent token exchange. They do not expose the production callback's
+browser-side redirect chain.
+
+The web consent form now accepts one submission at a time. Its HTML response
+starts a fresh browser navigation to the exact OAuth callback and offers a
+manual Continue link. The handoff response is non-cacheable and suppresses
+the referrer. PKCE, state, callback validation, and single-use code exchange
+still apply. The existing Codex loopback handoff and non-HTML 303 clients
+use their existing flow.
+
+Validation passed against the Firebase Auth and Firestore emulators with
+pinned Chromium (44 tests), alongside five atomic-consent tests and the
+native memory/MCP/encryption regression (50 passed, one skipped).
