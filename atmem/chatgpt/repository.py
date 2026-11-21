@@ -136,6 +136,35 @@ class Repository:
             return value if value.get("expires_at", time.time() + 1) > time.time() else None
         return consume(self.client.transaction(max_attempts=3))
 
+    def complete_authorization(self, nonce: str, expected: dict[str, Any], account: str,
+                               code: str | None, payload: dict[str, Any] | None) -> bool:
+        """Consume consent and persist its code in one commit, or leave both unchanged."""
+        source = self._doc("authorize", nonce)
+        replacement = None
+        if code is not None:
+            if payload is None or payload.get("subject") != account:
+                raise ValueError("authorization_subject_mismatch")
+            replacement = {
+                "envelope": self.seal("code:" + code, json.dumps(payload, separators=(",", ":")).encode()),
+                "kind": "control", "control_type": "code",
+                "account": self.settings.opaque_id("account-controls", account),
+                "expires_at": datetime.fromtimestamp(payload["expires_at"], timezone.utc),
+            }
+        @firestore.transactional
+        def complete(transaction):
+            row = source.get(transaction=transaction, timeout=5, retry=None)
+            if not row.exists:
+                return False
+            pending = json.loads(self.open("authorize:" + nonce, row.to_dict()["envelope"]))
+            if pending != expected or pending["expires_at"] <= time.time():
+                return False
+            if code is not None:
+                self.assert_active(account, transaction)
+                transaction.set(self._doc("code", code), replacement)
+            transaction.delete(source)
+            return True
+        return complete(self.client.transaction(max_attempts=3))
+
     def load(self, account: str) -> Snapshot:
         doc = self._doc("household", account)
         # Read the head and its chunks in one transaction: a writer may clean its

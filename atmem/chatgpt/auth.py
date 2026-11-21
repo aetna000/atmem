@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import json
 import hashlib
+import logging
 import secrets
 import re
 import time
@@ -21,6 +22,9 @@ from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 
 from .config import Settings, SCOPES, LOGIN_WINDOW_SECONDS
 from .repository import Repository,AccountClosed
+
+
+logger = logging.getLogger(__name__)
 
 
 CODEX_CLIENT_ID = "https://chatgpt.com/oauth/codex/client.json"
@@ -208,12 +212,15 @@ class OAuthProvider:
         return self.settings.issuer + "/connect/" + nonce
 
     def finish_authorize(self, nonce: str, account: str, approved: bool, *, connection_receipt: str | None = None) -> str:
-        pending = self.repository.consume_control("authorize", nonce)
+        pending = self.repository.get_control("authorize", nonce)
         if pending is None:
+            logger.warning("oauth_authorization_unavailable stage=before_code_issue")
             raise ValueError("authorization_expired_or_consumed")
         params = AuthorizationParams.model_validate(pending["params"])
         fields = {"state":params.state} if params.state is not None else {}
         fields['iss']=self.settings.issuer+'/'
+        code = None
+        payload = None
         if not approved:
             fields.update({"error":"access_denied"})
         else:
@@ -224,8 +231,17 @@ class OAuthProvider:
                 "resource":params.resource, "subject":account}
             if connection_receipt:
                 payload["connection_receipt"] = connection_receipt
-            self.repository.put_control("code", code, payload)
             fields["code"] = code
+        try:
+            completed = self.repository.complete_authorization(nonce, pending, account, code, payload)
+        except Exception as error:
+            # Never log credentials, request IDs, callback URLs or exception text.
+            logger.error("oauth_authorization_storage_failure error_type=%s", type(error).__name__)
+            raise
+        if not completed:
+            logger.warning("oauth_authorization_unavailable stage=code_commit")
+            raise ValueError("authorization_expired_or_consumed")
+        logger.info("oauth_authorization_completed approved=%s", approved)
         redirect = str(params.redirect_uri)
         return redirect + ("&" if "?" in redirect else "?") + urlencode(fields)
 

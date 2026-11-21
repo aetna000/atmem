@@ -24,26 +24,30 @@ ASSETS = Path(__file__).with_name('assets')
 STYLE = (ASSETS / 'account.css').read_text()
 WORDMARK = (ASSETS / 'wordmark.svg').read_text()
 NATIVE_SCRIPT = (ASSETS / 'account.js').read_text()
+WEB_CONSENT_SCRIPT = (ASSETS / 'web-consent.js').read_text()
 
 
-def page(title,body,status=200,*,validated_callback=None,native=False):
+def page(title,body,status=200,*,validated_callback=None,native=False,script=''):
     form_action = "'self'"
     if validated_callback:
         # Chromium checks form-action on the 303 redirect as well as the form's POST.
         # Only the OAuth consent page gets its SDK-validated callback destination.
         target = urlsplit(validated_callback)
         form_action += f" {target.scheme}://{target.netloc}{quote(target.path, safe='/%')}"
-    script_nonce = secrets.token_urlsafe(24) if native else None
-    script = f'<script nonce="{script_nonce}">{NATIVE_SCRIPT}</script>' if native else ''
+    script = NATIVE_SCRIPT if native else script
+    script_nonce = secrets.token_urlsafe(24) if script else None
+    script_tag = f'<script nonce="{script_nonce}">{script}</script>' if script else ''
     policy = f"default-src 'none'; style-src 'unsafe-inline'; form-action {form_action}; frame-ancestors 'none'; base-uri 'none'"
+    if script_nonce:
+        policy += f"; script-src 'nonce-{script_nonce}'"
     if native:
-        policy += f"; script-src 'nonce-{script_nonce}'; connect-src 'self'"
+        policy += "; connect-src 'self'"
     safe_title = html.escape(title)
     response = HTMLResponse(f'''<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>{safe_title} · AtMem</title><style>{STYLE}</style></head>
 <body><div class="shell"><main><div class="brand" role="img" aria-label="AtMem">{WORDMARK}</div>
 <h1 tabindex="-1">{safe_title}</h1>{body}</main><footer><a href="https://atmem.ai/cloud/privacy/">Privacy</a>
-<a href="https://atmem.ai/cloud/terms/">Terms</a><a href="https://atmem.ai/cloud/support/">Support</a><a href="/account/delete">Delete account</a></footer></div>{script}</body></html>''', status_code=status)
+<a href="https://atmem.ai/cloud/terms/">Terms</a><a href="https://atmem.ai/cloud/support/">Support</a><a href="/account/delete">Delete account</a></footer></div>{script_tag}</body></html>''', status_code=status)
     response.headers.update({"Cache-Control":"no-store", "Content-Security-Policy":policy, "Referrer-Policy":"same-origin", "X-Content-Type-Options":"nosniff"})
     return response
 
@@ -215,8 +219,8 @@ def install_routes(mcp,settings,repository,provider,identity,service):
         if pending is None:
             return page('This sign-in request has ended',
                         '<p>Return to the chat that requested AtMem. Ask AtMem again and choose the sign-in or reconnect action to start a fresh request. You can still create or recover your account below.</p>'+account_links(), 400)
+        native = pending['client_id'] == CODEX_CLIENT_ID
         if request.method=='GET':
-            native = pending['client_id'] == CODEX_CLIENT_ID
             client = 'Codex' if native else 'your app'
             labels = {'memory:read':'Read saved memories', 'memory:write':'Propose saves and corrections',
                       'memory:delete':'Propose deletions'}
@@ -226,7 +230,7 @@ def install_routes(mcp,settings,repository,provider,identity,service):
                 links = (f'<nav class="links" aria-label="Account help"><a href="/register?request={nonce}">Create account</a>'
                          f'<a href="/reset-password?request={nonce}">Reset password</a>'
                          f'<a href="/verify-email?request={nonce}">Verify email</a></nav>')
-            attribute = ' data-native' if native else ''
+            attribute = ' data-native' if native else ' data-web-consent'
             body = (f'<section id="login"><p>Sign in to use your saved memories in {client}.</p>'
                     f'<div class="scope">{permissions}<br>Each change needs your separate approval.</div>'
                     f'<form method="post"{attribute}>'+csrf_form(request)+credentials()
@@ -234,17 +238,27 @@ def install_routes(mcp,settings,repository,provider,identity,service):
                     '<button name="decision" value="deny" formnovalidate>Cancel</button></div></form>'+links+'</section>'
                     '<p id="feedback" role="alert"></p>'
                     )
-            return page('Connect to AtMem',body,validated_callback=pending['params']['redirect_uri'],native=native)
+            return page('Connect to AtMem',body,validated_callback=pending['params']['redirect_uri'],
+                        native=native,script='' if native else WEB_CONSENT_SCRIPT)
         try:
             form=await request.form();check_csrf(request,form)
             approved=form.get('decision')=='approve'
             account=await browser_user(request,form) if approved else ''
-            enhanced = approved and pending['client_id'] == CODEX_CLIENT_ID and request.headers.get('accept') == 'application/json'
+            enhanced = approved and native and request.headers.get('accept') == 'application/json'
             receipt = secrets.token_urlsafe(32) if enhanced else None
             callback = provider.finish_authorize(nonce,account,approved,connection_receipt=receipt)
             if receipt:
                 request.session['connection_receipt'] = receipt
                 return JSONResponse({'callback':callback})
+            if not native and 'text/html' in request.headers.get('accept',''):
+                # Start a new navigation so the consent form's CSP does not
+                # govern redirects made by the OAuth client's callback.
+                link = html.escape(callback, quote=True)
+                response = page('Return to your app',
+                                f'<p><a data-oauth-callback href="{link}" rel="noreferrer">Continue to your app</a></p>',
+                                script=WEB_CONSENT_SCRIPT)
+                response.headers['Referrer-Policy'] = 'no-referrer'
+                return response
             return RedirectResponse(callback,status_code=303)
         except (ValueError,Denied) as error:
             if str(error)=='verify_email_before_connecting':
