@@ -26,8 +26,9 @@ These tests do not constitute real Firestore, browser or live OpenAI verificatio
 Cached local dependencies were used; the deployment-pinned environment still
 needs the existing emulator integration suite.
 
-Production status: not deployed. Cloud log retrieval was blocked by DNS resolution
-of oauth2.googleapis.com in the execution environment. The reported incident
+At the time of this initial note, the change had not been deployed. Cloud log
+retrieval was blocked by DNS resolution of oauth2.googleapis.com in the
+execution environment. The reported incident
 therefore remains unconfirmed. Before deployment, run the real Firebase emulator
 suite documented in .github/workflows/chatgpt-cloud.yml. Inspect a fresh failing
 reconnect's Cloud Run request/status logs, without copying query parameters or
@@ -58,7 +59,7 @@ mismatched live deployment. Inspect the Cloud Run request matching this trace,
 then correlate the preceding authorize/form GET and any earlier consent POSTs.
 The browser request headers contained cookies; do not export or commit raw HAR,
 request headers or form payloads. No passwords, cookies or full nonce URLs are
-retained in this note. Cloud logs remain inaccessible from this task's terminal.
+retained in this note. Cloud logs were inaccessible when this trace was recorded.
 
 ## Cloud Run correlation and browser handoff repair
 
@@ -87,3 +88,21 @@ use their existing flow.
 Validation passed against the Firebase Auth and Firestore emulators with
 pinned Chromium (44 tests), alongside five atomic-consent tests and the
 native memory/MCP/encryption regression (50 passed, one skipped).
+
+The reviewed source commit `da2246b494bec35a0a07252e4d9c21aa255c0682`
+built successfully in Cloud Build `add60776-fd35-4bdc-8a46-aa871c6eb520`.
+Cloud Run revision `atmem-chatgpt-oauth-da2246b` serves 100% of traffic using
+image digest
+`sha256:d0b5dfa81d7861d2bb44ef95b899aa8befb7b5e3cad9be6d77cb6a3038cc8176`.
+The runtime specification matched the previous revision after excluding the
+image. The previous revision remains available for rollback.
+
+The public health endpoint returned 200. A live synthetic account passed
+the protected HTML handoff, exact callback and state checks, PKCE token
+exchange, code-replay rejection, and authenticated MCP tool listing. After
+the ten-minute access lifetime, the old token was rejected, refresh restored
+MCP access, and the test grant was revoked.
+
+Platform Reconnect and Rescan verification are pending. The signed-in browser
+was unavailable, and no fresh Platform attempt reached the new revision during
+the live checks.
