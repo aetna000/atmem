@@ -12,7 +12,7 @@ import sys
 import tempfile
 
 
-EXPECTED_ATMEM_VERSION = "2.3.12"
+EXPECTED_ATMEM_VERSION = "2.3.15"
 
 
 def run(*args: str) -> subprocess.CompletedProcess[str]:
@@ -31,7 +31,9 @@ def main() -> None:
         for entry in distribution.entry_points
         if entry.group == "console_scripts"
     }
-    assert scripts == {"atmem": "atmem.cli:main"}, scripts
+    assert scripts == {"atmem": "atmem.cli:main", "atmem-memory-study": "atmem.benchmark.memory_adaptation:main"}, scripts
+    study_executable = Path(sys.executable).with_name("atmem-memory-study.exe" if os.name == "nt" else "atmem-memory-study")
+    assert "explicit" in run(str(study_executable), "--help").stdout.lower() or "pilot" in run(str(study_executable), "--help").stdout.lower()
 
     executable = Path(sys.executable).with_name(
         "atmem.exe" if os.name == "nt" else "atmem"

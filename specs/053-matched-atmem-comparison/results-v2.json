@@ -1,0 +1,471 @@
+{
+  "format": "atmem-matched-comparison-v1",
+  "status": "complete_with_explicit_settled_malformed_recovery",
+  "arms": {
+    "none": {
+      "correct": 6,
+      "observed": 12,
+      "scheduled": 12,
+      "not_observed": 0,
+      "upstream_correct": 6,
+      "calls": 70,
+      "tokens": 124664,
+      "usd": 0.008149575,
+      "p50_seconds": 20.90082550048828,
+      "latency_observed": 12,
+      "p95_seconds": 50.452250242233276
+    },
+    "original": {
+      "correct": 2,
+      "observed": 12,
+      "scheduled": 12,
+      "not_observed": 0,
+      "upstream_correct": 2,
+      "calls": 62,
+      "tokens": 199816,
+      "usd": 0.010720790000000001,
+      "p50_seconds": 19.52305507659912,
+      "latency_observed": 11,
+      "p95_seconds": 47.39077305793762
+    },
+    "pilot": {
+      "correct": 0,
+      "observed": 12,
+      "scheduled": 12,
+      "not_observed": 0,
+      "upstream_correct": 1,
+      "calls": 53,
+      "tokens": 174617,
+      "usd": 0.01023443,
+      "p50_seconds": 16.121551990509033,
+      "latency_observed": 12,
+      "p95_seconds": 32.73038601875305
+    }
+  },
+  "resources": {
+    "calls": 185,
+    "tokens": 499097,
+    "usd": 0.029104795,
+    "bytes": 10357929
+  },
+  "seconds": 1082.8654057979584,
+  "unknown_calls": 0,
+  "trials": [
+    {
+      "case_id": "109",
+      "arm": "none",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 5,
+      "seconds": 20.86921501159668,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "109",
+      "arm": "original",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 2,
+      "seconds": 8.452865839004517,
+      "context_bytes": 7242,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "109",
+      "arm": "pilot",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 2,
+      "seconds": 9.622466087341309,
+      "context_bytes": 7077,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "110",
+      "arm": "none",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 2,
+      "seconds": 8.79790210723877,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "110",
+      "arm": "original",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 2,
+      "seconds": 10.862882852554321,
+      "context_bytes": 7211,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "110",
+      "arm": "pilot",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 2,
+      "seconds": 11.786616802215576,
+      "context_bytes": 7211,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "111",
+      "arm": "none",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 6,
+      "seconds": 50.452250242233276,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "111",
+      "arm": "original",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 8,
+      "seconds": 36.52317214012146,
+      "context_bytes": 7047,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "111",
+      "arm": "pilot",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 7,
+      "seconds": 30.44397473335266,
+      "context_bytes": 7211,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "112",
+      "arm": "none",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 6,
+      "seconds": 21.69259476661682,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "112",
+      "arm": "original",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 10,
+      "seconds": 44.22560095787048,
+      "context_bytes": 6698,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "112",
+      "arm": "pilot",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 7,
+      "seconds": 32.73038601875305,
+      "context_bytes": 6825,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "113",
+      "arm": "none",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 4,
+      "seconds": 16.33424401283264,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "113",
+      "arm": "original",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 6,
+      "seconds": 47.39077305793762,
+      "context_bytes": 7276,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "113",
+      "arm": "pilot",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 3,
+      "seconds": 16.177906036376953,
+      "context_bytes": 7304,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "114",
+      "arm": "none",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 2,
+      "seconds": 7.722746849060059,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "114",
+      "arm": "original",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 1,
+      "seconds": 7.944976091384888,
+      "context_bytes": 7058,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "114",
+      "arm": "pilot",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 2,
+      "seconds": 12.167419195175171,
+      "context_bytes": 7186,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "115",
+      "arm": "none",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 5,
+      "seconds": 20.932435989379883,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "115",
+      "arm": "original",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 4,
+      "seconds": 19.52305507659912,
+      "context_bytes": 5760,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "115",
+      "arm": "pilot",
+      "correct": false,
+      "upstream_correct": true,
+      "queries": 3,
+      "seconds": 19.74759602546692,
+      "context_bytes": 5887,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "116",
+      "arm": "none",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 3,
+      "seconds": 13.504713773727417,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "116",
+      "arm": "original",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 1,
+      "seconds": 10.604819059371948,
+      "context_bytes": 5804,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "116",
+      "arm": "pilot",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 4,
+      "seconds": 21.236225128173828,
+      "context_bytes": 5820,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "117",
+      "arm": "none",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 8,
+      "seconds": 32.37816119194031,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "117",
+      "arm": "original",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 7,
+      "seconds": 31.511170148849487,
+      "context_bytes": 7212,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "117",
+      "arm": "pilot",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 3,
+      "seconds": 16.065197944641113,
+      "context_bytes": 7201,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "118",
+      "arm": "none",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 4,
+      "seconds": 16.848587036132812,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "118",
+      "arm": "original",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 1,
+      "seconds": 7.784985065460205,
+      "context_bytes": 6939,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "118",
+      "arm": "pilot",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 3,
+      "seconds": 13.305631875991821,
+      "context_bytes": 7066,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "119",
+      "arm": "none",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 5,
+      "seconds": 25.549451112747192,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "119",
+      "arm": "original",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 0,
+      "seconds": null,
+      "context_bytes": 7204,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "119",
+      "arm": "pilot",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 4,
+      "seconds": 26.432231903076172,
+      "context_bytes": 7224,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "120",
+      "arm": "none",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 8,
+      "seconds": 32.05767774581909,
+      "context_bytes": 0,
+      "context_status": "disabled"
+    },
+    {
+      "case_id": "120",
+      "arm": "original",
+      "correct": true,
+      "upstream_correct": true,
+      "queries": 8,
+      "seconds": 36.924418926239014,
+      "context_bytes": 6279,
+      "context_status": "sufficient"
+    },
+    {
+      "case_id": "120",
+      "arm": "pilot",
+      "correct": false,
+      "upstream_correct": false,
+      "queries": 1,
+      "seconds": 9.836745023727417,
+      "context_bytes": 7068,
+      "context_status": "sufficient"
+    }
+  ],
+  "independent_database_lineages": 1,
+  "claim": "drift_only_diagnostic; no demonstrated learning",
+  "manifest_sha256": "95d878a6805ddf7f76271ab2e0d048f5de494649f86b1e5f6ab67d21db832bd9",
+  "latency_limitations": "Original119 interrupted latency unavailable; recovered row placeholder0 must be excluded from latency aggregates. Elapsed includes recovery downtime.",
+  "actual_models": {
+    "openai/gpt-6-luna": 185
+  },
+  "actual_providers": {
+    "OpenAI": 185
+  },
+  "sql_error_observations": {
+    "none": 3,
+    "original": 16,
+    "pilot": 2
+  },
+  "context_status_counts": {
+    "sufficient": 24
+  },
+  "filesystem_bytes": 12971616,
+  "protocol_revision": 2,
+  "source_sha": "3303183a362132b45280732706181802550c73c9",
+  "recovery": {
+    "already_completed": 30,
+    "failed_attempt": [
+      "119",
+      "original"
+    ],
+    "reason": "settled malformed JSON; no call retry",
+    "source_sha": "86f7f63c41603cc3bf6621c168a5540ec61cab90",
+    "source_sha256": "c12f55c32bbd3d39dce9954a9c862910badd04ebf39a9f00cf562f3282a3e583"
+  },
+  "paired_correctness_counts": {
+    "none__original": {
+      "(False, False)": 5,
+      "(True, False)": 5,
+      "(False, True)": 1,
+      "(True, True)": 1
+    },
+    "none__pilot": {
+      "(False, False)": 6,
+      "(True, False)": 6
+    },
+    "original__pilot": {
+      "(False, False)": 10,
+      "(True, False)": 2
+    }
+  },
+  "combined_protocol_attempts_resources": {
+    "calls": 222,
+    "tokens": 582740,
+    "usd": 0.035416155,
+    "bytes": 12370607
+  },
+  "all_scheduled_condition_trials_completed": true,
+  "qualified_comparison": false,
+  "qualification_failure": "Host adapter appended retrieved historical questions after current task; task displacement observed. Do not rank product versions from these scores."
+}

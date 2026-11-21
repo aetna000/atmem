@@ -117,7 +117,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Pin the supported ARM64 image; avoid floating macOS-26 pool capacity.
+        os: [ubuntu-latest, macos-15, windows-latest]
     defaults:
       run:
         working-directory: integrations/openclaw
@@ -157,7 +158,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Pin the supported ARM64 image; avoid floating macOS-26 pool capacity.
+        os: [ubuntu-latest, macos-15, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -211,6 +213,37 @@ jobs:
           set -euo pipefail
           OPENCLAW_PROBE_DIR="$RUNNER_TEMP/oc-${{ matrix.label }}/probe" \
             node test/hook-context-compat.mjs
+      - name: Capture failed latest declaration for explicit source review
+        if: failure() && matrix.label == 'latest'
+        working-directory: integrations/openclaw
+        shell: bash
+        run: |
+          set -euo pipefail
+          OPENCLAW_PROBE_DIR="$RUNNER_TEMP/oc-latest/probe" \
+            node test/lib/record-hook-context.mjs --probe
+          node --input-type=module <<'JS'
+          import fs from "node:fs";
+          import path from "node:path";
+          import { createHash } from "node:crypto";
+          const directory = path.join(process.env.RUNNER_TEMP, "oc-latest");
+          const archives = fs.readdirSync(directory).filter(name => name.endsWith(".tgz"));
+          if (archives.length !== 1) throw new Error("one resolved upstream archive required");
+          const hash = createHash("sha512");
+          for await (const chunk of fs.createReadStream(path.join(directory, archives[0]))) hash.update(chunk);
+          fs.writeFileSync(path.join(directory, "probe-provenance.json"), JSON.stringify({
+            version: process.env.resolved, integrity: "sha512-"+hash.digest("base64"),
+            declaration_only: true, native_authorization_expanded: false,
+          }, null, 2));
+          JS
+      - name: Retain declaration diagnostic; the compatibility gate remains failed
+        if: failure() && matrix.label == 'latest'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openclaw-declaration-review-${{ env.resolved }}
+          path: |
+            integrations/openclaw/test/fixtures/hook-context-probes/${{ env.resolved }}.json
+            ${{ runner.temp }}/oc-latest/probe-provenance.json
+          retention-days: 1
       - name: Record resolved version in the run summary
         if: always()
         shell: bash
@@ -251,7 +284,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        source-version: ["2.3.10", "2.3.11b1"]
+        source-version: ["2.3.12", "2.3.11b1", "2.3.14", "2.3.15b1"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -280,7 +313,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Pin the supported ARM64 image; avoid floating macOS-26 pool capacity.
+        os: [ubuntu-latest, macos-15, windows-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
@@ -302,7 +336,7 @@ jobs:
       - name: Exercise installed artifact outside checkout
         working-directory: ${{ runner.temp }}
         run: |
-          python -c "import importlib.util; from importlib.metadata import version; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None; assert version('atflows') == '0.1.5'"
+          python -c "import importlib.util; from importlib.metadata import version; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None; assert version('atflows') == '0.1.8'"
           python "${{ github.workspace }}/tools/smoke_installed_package.py"
           python "${{ github.workspace }}/tools/smoke_delegated_package.py"
           python "${{ github.workspace }}/tools/smoke_delegated_transport.py"
@@ -314,7 +348,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Pin the supported ARM64 image; avoid floating macOS-26 pool capacity.
+        os: [ubuntu-latest, macos-15, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

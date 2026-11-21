@@ -119,6 +119,25 @@ class ReviewService:
         self.memory = memory
         self.policy = policy or ReviewPolicy()
 
+    def propose_feedback_rule(self, feedback, session, candidate, *, idempotency_key):
+        from atmem.feedback.review import propose
+        return propose(self, feedback, session, candidate, idempotency_key=idempotency_key)
+
+    def decide_feedback_rule(self, feedback, session, **decision):
+        from atmem.feedback.review import decide
+        return decide(self, feedback, session, **decision)
+
+    def propose_feedback_profile(self, feedback, session, candidate, *, idempotency_key):
+        from atmem.contracts.feedback import RetrievalProfileCandidate
+        from atmem.feedback.review import propose
+        if type(candidate) is not RetrievalProfileCandidate:
+            raise ValueError("retrieval profile candidate required")
+        return propose(self, feedback, session, candidate, idempotency_key=idempotency_key)
+
+    def decide_feedback_profile(self, feedback, session, *, profile_id, **decision):
+        from atmem.feedback.review import decide
+        return decide(self, feedback, session, rule_id=profile_id, kind="profile", **decision)
+
     def queue(
         self, subject_id: str | None = None, *, limit: int = 100
     ) -> dict[str, Any]:

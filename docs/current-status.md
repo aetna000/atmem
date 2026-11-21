@@ -1,15 +1,19 @@
 # Current status
 
-**Stable release line:** AtMem `2.3.12`, OpenClaw bridge `2.3.12`, legacy
-AtBot companion `0.1.1`, and pinned AtFlows `0.1.5`. See the
-[2.3.12 release note](releases/v2.3.12.md). Standalone AtBots is a separate
+**Stable release line:** AtMem `2.3.15`, OpenClaw bridge `2.3.15`, legacy
+AtBot companion `0.1.1`, and pinned AtFlows `0.1.8`. See the
+[2.3.15 release note](releases/v2.3.15.md). Governed RAG/MCP and feedback are
+explicit opt-ins; memory-policy studies remain experimental. No reliable learning
+gain or production-policy qualification is established. The unpublished b2 target
+was superseded by this stable release; historical study versions are unchanged.
+Standalone AtBots is a separate
 agent platform; it does not replace the legacy companion.
 
 Evidence discovery and research action routing remain explicit opt-ins;
 ordinary governed memory and context defaults are retained. The final routed-v4
 [DolphinBench run](https://huggingface.co/datasets/atmem/dolphinbench-routed-v4-20261101)
 passed 479/600 tasks (79.83%). It used the documented frozen research source
-with the installed 2.3.10b1 base, not a new benchmark of the stable 2.3.12 wheel.
+with the installed 2.3.10b1 base, not a new benchmark of the stable 2.3.15 wheel.
 The [submission PR](https://github.com/mem0ai/dolphinbench/pull/10) is self-tested,
 not official benchmark certification. Historical artifacts keep their identities.
 
@@ -80,3 +84,5 @@ uses the documented authenticated symmetric profile.
 See the [2.3.10 release notes](releases/v2.3.10.md) for stable upgrade and migration commands,
 and the [implementation evidence index](implementation-evidence/README.md) for the
 recorded gates.
+
+Spec052 adds an owner-invoked [measured memory-adaptation study](measured-memory-adaptation.md). It compares fixed-agent controls with one training-derived instruction revision. No automatic production activation, model-weight training or broad efficacy claim is provided.

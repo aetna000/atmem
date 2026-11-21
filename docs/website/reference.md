@@ -26,3 +26,10 @@
 
 Scope filters and lifecycle checks remain authority boundaries, whatever retrieval
 strategy or intelligence provider is selected.
+
+## Measured memory adaptation (experimental opt-in)
+
+`atmem-memory-study --help` describes the standalone experimental runner.
+The [SDK and study guide](../measured-memory-adaptation.md) document scope,
+independent grading, fixed policies/memory and encrypted result inspection.
+There is no automatic host integration or production qualification receipt.

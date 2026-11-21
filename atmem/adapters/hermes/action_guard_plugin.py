@@ -124,8 +124,15 @@ class _Binding:
         return (response_text.rstrip() + '\n\n' + notice) if notice and response_text else None
 
 
-def register(ctx):
+def register(ctx, *, feedback_guard=None):
+    """Register routing hooks, optionally composing the governed service guard.
+
+    The optional binding is trusted application configuration. Ordinary staged
+    plugins pass no binding and retain their existing hooks and behavior.
+    """
     binding = _Binding(Path(__file__).resolve().parent, _load_policy())
     for hook in ('pre_llm_call', 'pre_tool_call', 'post_tool_call', 'transform_tool_result', 'transform_llm_output'):
         ctx.register_hook(hook, getattr(binding, hook))
+    if feedback_guard is not None:
+        feedback_guard.install(ctx)
     return binding

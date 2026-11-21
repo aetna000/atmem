@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "atmem-feedback-action-check-v1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "atmem-feedback-action-check-v1"
+    },
+    "check_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "maxLength": 256
+    },
+    "kind": {
+      "enum": [
+        "mechanical",
+        "judged"
+      ]
+    },
+    "result": {
+      "enum": [
+        "pass",
+        "fail",
+        "unknown",
+        "disputed"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 65536
+    }
+  },
+  "required": [
+    "format",
+    "check_id",
+    "kind",
+    "result",
+    "reason"
+  ],
+  "additionalProperties": false
+}

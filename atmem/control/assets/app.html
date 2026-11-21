@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AtMem.ai | Insight</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M12 6.5 L5.5 17.5 M12 6.5 L18.5 17.5' stroke='%231F777C' stroke-width='1.4' stroke-linecap='round'/%3E%3Ccircle cx='12' cy='5' r='2.6' fill='%231F777C'/%3E%3Ccircle cx='5' cy='18.5' r='2.2' stroke='%231F777C' stroke-width='1.4'/%3E%3Ccircle cx='19' cy='18.5' r='2.2' stroke='%231F777C' stroke-width='1.4'/%3E%3C/svg%3E">
+<title>AtMem.ai | Agent Memory</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%22-177.5 -174.5 355 355%22%3E%3Crect x=%22-177.5%22 y=%22-174.5%22 width=%22355%22 height=%22355%22 rx=%2278.1%22 fill=%22%23F3F6F6%22/%3E%3Cg transform=%22translate%280 2%29%22%3E%3Cpath d=%22M-91.21 73.37 L0 -88 L91.21 73.37 M-66.7 30 H66.7%22 fill=%22none%22 stroke=%22%23101314%22 stroke-width=%2232%22 stroke-linejoin=%22round%22/%3E%0A%3Cpath d=%22M-146 96a42 42 0 1 0 84 0a42 42 0 1 0 -84 0ZM-114 96a10 10 0 1 0 20 0a10 10 0 1 0 -20 0ZM62 96a42 42 0 1 0 84 0a42 42 0 1 0 -84 0ZM94 96a10 10 0 1 0 20 0a10 10 0 1 0 -20 0Z%22 fill=%22%23101314%22 fill-rule=%22evenodd%22/%3E%3Ccircle cx=%220%22 cy=%22-88%22 r=%2244%22 fill=%22%23F3A2B4%22/%3E%3C/g%3E%3C/svg%3E">
 <style>
 /*==ATMEM_INLINE_CSS==*/
 </style>
@@ -29,12 +29,13 @@
 <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 0-2 5"/></symbol>
 </defs></svg>
 <header><div class="wrap head">
-  <a class="logo" href="https://atmem.ai/" target="_blank" rel="noopener noreferrer" aria-label="Visit AtMem.ai (opens in a new tab)"><svg class="brandmark" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 6.5 L5.5 17.5 M12 6.5 L18.5 17.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="12" cy="5" r="2.6" fill="currentColor"/><circle cx="5" cy="18.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="19" cy="18.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/></svg><strong>AtMem.ai</strong></a>
+  <a class="logo" href="https://atmem.ai/" target="_blank" rel="noopener noreferrer" aria-label="AtMem.ai Agent Memory: visit AtMem.ai (opens in a new tab)"><svg class="brandmark" viewBox="-154.35 -151.35 308.7 308.7" aria-hidden="true"><g transform="translate(0 2)"><path d="M-91.7 74.24 L0 -88 L91.7 74.24 M-66.7 30 H66.7" fill="none" stroke="currentColor" stroke-width="26" stroke-linejoin="round"/><path d="M-142 96a38 38 0 1 0 76 0a38 38 0 1 0 -76 0ZM-116 96a12 12 0 1 0 24 0a12 12 0 1 0 -24 0ZM66 96a38 38 0 1 0 76 0a38 38 0 1 0 -76 0ZM92 96a12 12 0 1 0 24 0a12 12 0 1 0 -24 0Z" fill="currentColor" fill-rule="evenodd"/><circle class="atmem-dot" cx="0" cy="-88" r="40"/></g></svg><strong>AtMem.ai</strong><span class="branddivider" aria-hidden="true">|</span><span class="brandproduct">Agent Memory</span></a>
   <div class="tabnav" role="tablist" aria-label="Dashboard sections">
     <button class="tabbtn active" id="navStatus" type="button" role="tab" aria-selected="true">Sessions</button>
     <button class="tabbtn" id="navDecisions" type="button" role="tab" aria-selected="false">Decisions<span class="navbadge" id="decisionsBadge" hidden>0</span></button>
     <button class="tabbtn" id="navMemory" type="button" role="tab" aria-selected="false">Memory</button>
     <button class="tabbtn" id="navAudit" type="button" role="tab" aria-selected="false">Audit</button>
+    <button class="tabbtn" id="navFeedback" type="button" role="tab" aria-selected="false" aria-controls="viewFeedback">Feedback</button>
     <button class="tabbtn" id="navSettings" type="button" role="tab" aria-selected="false">Settings</button>
   </div>
   <a class="companionnav" id="atflowsDashboardLink" hidden target="_blank" rel="noopener noreferrer">AtFlows <span aria-hidden="true">↗</span></a>
@@ -102,6 +103,41 @@
     </div>
   </section>
 
+  <div class="tabpanel" id="viewFeedback" role="tabpanel" aria-labelledby="navFeedback">
+    <section class="card" aria-labelledby="feedbackTitle">
+      <h2 id="feedbackTitle">Verified feedback</h2>
+      <p class="sub">Investigate action outcomes, review exact proposals and compare changes in shadow. A retrieved memory or a host success report is not independent proof of success.</p>
+      <p id="feedbackStatus" role="status" aria-live="polite">Open this tab to load the configured scope.</p>
+      <button id="feedbackRefresh" class="secondary" type="button">Refresh feedback</button>
+      <form id="feedbackQualityForm">
+        <label for="feedbackSchedule">Frozen task schedule</label>
+        <select id="feedbackSchedule" required><option value="">Select a schedule</option></select>
+        <button type="submit" class="primary">Show quality and actions</button>
+      </form>
+      <div id="feedbackQuality" aria-live="polite"></div>
+      <h3>Reviewed changes</h3>
+      <p class="sub">Shadow does not replace delivered context. Activation requires accepted qualification; inconclusive synthetic results cannot activate a change.</p>
+      <div id="feedbackProposals"></div>
+      <section id="feedbackExport" hidden aria-labelledby="feedbackExportTitle">
+        <h3 id="feedbackExportTitle">Verified-example export</h3>
+        <p class="sub">Only independently verified examples are eligible. Review the exact plaintext preview for personal or sensitive information before confirming. This does not train a model. Withdrawal blocks future exports; it cannot recall recipient copies or erase trained weights.</p>
+        <form id="feedbackExportForm">
+          <label for="feedbackConsentId">Consent ID</label><input id="feedbackConsentId" required maxlength="256">
+          <label for="feedbackExportPurpose">Purpose</label><input id="feedbackExportPurpose" required maxlength="1024">
+          <label for="feedbackRecipientKey">Recipient ML-KEM-768 public key (base64)</label><textarea id="feedbackRecipientKey" required maxlength="1600"></textarea>
+          <label for="feedbackOutcomeIds">Outcome IDs (one per line, up to 64)</label><textarea id="feedbackOutcomeIds" required></textarea>
+          <label for="feedbackExportSplit">Destination split</label><select id="feedbackExportSplit"><option value="development">Development</option><option value="train">Training examples (export only)</option></select>
+          <label for="feedbackExportExpiry">Consent expiry</label><input id="feedbackExportExpiry" type="datetime-local" required>
+          <button type="submit" class="secondary">Grant consent and preview</button>
+        </form>
+        <p id="feedbackExportStatus" role="status" aria-live="polite"></p>
+        <details><summary>Exact export preview and exclusions</summary><pre id="feedbackExportPreview"></pre></details>
+        <label><input id="feedbackExportReviewed" type="checkbox">I reviewed the exact preview, recipient and purpose, including sensitive data.</label>
+        <button id="feedbackExportConfirm" type="button" class="primary" disabled>Confirm encrypted export</button>
+        <button id="feedbackExportWithdraw" type="button" class="secondary">Withdraw this consent</button>
+      </section>
+    </section>
+  </div>
   <div class="tabpanel" id="viewSettings">
   <div class="pageheading"><div><div class="eyebrow">Configuration</div><h1>Settings</h1><p>Control memory intelligence, governed task state, and optional context providers.</p></div></div>
   <div class="settingsworkspace" id="settingsWorkspace"><nav class="settingsrail" id="settingsRail" aria-label="Settings sections"><div class="settingsrailtitle">Settings</div></nav><main class="settingsstage" id="settingsStage" aria-live="polite"></main></div>
@@ -307,7 +343,7 @@
       <li><span class="legenddot complete" aria-hidden="true"></span><span><b>Green</b> · Run completed</span></li>
       <li><span class="legenddot review" aria-hidden="true"></span><span><b>Amber</b> · Review needed or evidence uncertain</span></li>
       <li><span class="legenddot failed" aria-hidden="true"></span><span><b>Red</b> · Run or tool reported a failure</span></li>
-      <li><span class="legenddot running" aria-hidden="true"></span><span><b>Teal</b> · In progress</span></li>
+      <li><span class="legenddot running" aria-hidden="true"></span><span><b>Pink</b> · In progress</span></li>
      </ul>
      <p>Colours describe each item separately. A completed run can contain failed tool calls; completion does not verify the answer.</p>
     </aside>

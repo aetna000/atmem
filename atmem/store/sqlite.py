@@ -82,7 +82,7 @@ class SQLiteStore:
         """Create and integrity-check a consistent SQLite backup."""
         target = Path(destination).expanduser().resolve()
         target.parent.mkdir(parents=True, exist_ok=True)
-        backup = sqlite3.connect(str(target))
+        backup = connect(target, policy=self.policy, isolation_level=None)
         try:
             self._conn.backup(backup)
             result = str(backup.execute("PRAGMA integrity_check").fetchone()[0])
@@ -92,19 +92,31 @@ class SQLiteStore:
             raise RuntimeError(f"backup integrity check failed: {result}")
         return {"format": "atmem-storage-backup-v1", "backend_id": "sqlite-v1", "path": str(target), "integrity": result}
 
+    def restore_state(self) -> dict[str, str] | None:
+        """Content-free witness for application-level authority reconciliation."""
+        from atmem.store.restore_state import read_restore_state
+        return read_restore_state(self)
+
     def restore_from(self, source: str | Path) -> dict[str, Any]:
         """Replace this open database from a verified SQLite snapshot."""
         if self._transaction_depth:
             raise RuntimeError("restore cannot run inside a transaction")
-        origin = sqlite3.connect(str(Path(source).expanduser().resolve()))
+        origin = connect(Path(source).expanduser().resolve(), policy=self.policy, isolation_level=None)
         try:
             integrity = str(origin.execute("PRAGMA integrity_check").fetchone()[0])
             if integrity != "ok":
                 raise RuntimeError(f"restore source integrity check failed: {integrity}")
+            # Publish pending before replacing any canonical bytes. A process
+            # loss or failed migration must never look like a completed restore
+            # to an optional authority consumer such as verified feedback.
+            from atmem.store.restore_state import write_restore_state
+            restore_id = uuid.uuid4().hex
+            write_restore_state(self, restore_id=restore_id, state="pending")
             origin.backup(self._conn)
         finally:
             origin.close()
         self._migrate()
+        write_restore_state(self, restore_id=restore_id, state="complete")
         return {"format": "atmem-storage-restore-v1", "backend_id": "sqlite-v1", "integrity": integrity, "migrations": self.applied_migrations()}
 
     def lifecycle_generation(self, subject_id: str) -> int:
@@ -4322,6 +4334,7 @@ class SQLiteStore:
         record_ids: list[str],
         *,
         remote: bool = False,
+        agent_id: str | None = None,
     ) -> set[str]:
         """Authorize bounded candidate IDs without enumerating the corpus."""
         ids = list(dict.fromkeys(str(value) for value in record_ids))
@@ -4335,6 +4348,7 @@ class SQLiteStore:
                 "AND r.sensitivity_class NOT IN ('sensitive', 'restricted')"
                 if remote else ""
             )
+            agent_clause = "AND json_extract(r.raw, '$.authority_scope.agent_id') = ?" if agent_id is not None else ""
             rows = self._conn.execute(
                 f"""
                 SELECT r.id FROM records r
@@ -4345,14 +4359,14 @@ class SQLiteStore:
                     OR (r.authority_subject_id = ? AND r.authority_workspace_id = ?)
                     )
                   )
-                  {remote_clause}
+                  {remote_clause} {agent_clause}
                   AND NOT EXISTS (
                     SELECT 1 FROM retrieval_exclusions x
                     WHERE x.subject_id = r.subject_id AND x.record_id = r.id
                   )
                   AND r.id IN ({placeholders})
                 """,
-                (subject_id, subject_id, workspace_id, *batch),
+                (subject_id, subject_id, workspace_id, *([agent_id] if agent_id is not None else []), *batch),
             ).fetchall()
             allowed.update(str(row["id"]) for row in rows)
         return allowed

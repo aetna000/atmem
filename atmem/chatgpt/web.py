@@ -359,4 +359,3 @@ def install_routes(mcp,settings,repository,provider,identity,service):
             return page('Operation '+result['state'],'<p>Return to ChatGPT. The plugin can now request the commit or report cancellation.</p>')
         except (ValueError,Denied):
             return page('Approval rejected','Sign in and review the operation again. No memory operation was committed.',403)
-

@@ -130,12 +130,21 @@ bytes, and the host still has to confirm what reached model input.
 ```bash
 atmem delegated disable mem0-context-provider:mem0-local
 atmem provider stop mem0-local
+atmem provider status mem0-local
 atmem provider remove mem0-local --yes
 ```
 
 Removal deletes the provider's local key and configuration. It does not delete
 the external provider's database and does not erase AtMem's historical flight
 evidence.
+
+Development change in Spec 050: Windows process-identity inspection retries a
+transient CIM timeout within a bounded 5-second then 10-second window. Unknown
+ownership never authorizes termination. A stop whose process exit is not yet
+confirmed returns `stop_pending: true` and retains its PID/recovery state; inspect
+again and remove the instance only once `running` is false. Successful normal
+stop/status output is unchanged. These are process-management bounds, separate
+from provider-request and benchmark model/judge deadlines.
 
 ## Authenticated HTTP and beta migration
 

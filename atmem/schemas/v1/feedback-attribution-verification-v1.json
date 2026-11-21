@@ -1,0 +1,232 @@
+{
+  "$id": "atmem-feedback-attribution-verification-v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action_id": {
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "type": "string"
+    },
+    "assurance": {
+      "enum": [
+        "independent_readback"
+      ]
+    },
+    "attribution_id": {
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "type": "string"
+    },
+    "checks": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "check_id": {
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+            "type": "string"
+          },
+          "format": {
+            "const": "atmem-feedback-action-check-v1"
+          },
+          "kind": {
+            "enum": [
+              "mechanical",
+              "judged"
+            ]
+          },
+          "reason": {
+            "maxLength": 65536,
+            "type": "string"
+          },
+          "result": {
+            "enum": [
+              "pass",
+              "fail",
+              "unknown",
+              "disputed"
+            ]
+          }
+        },
+        "required": [
+          "format",
+          "check_id",
+          "kind",
+          "result",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "maxItems": 128,
+      "type": "array"
+    },
+    "claim": {
+      "enum": [
+        "bounded_operational_classification"
+      ]
+    },
+    "evidence": {
+      "maxProperties": 128,
+      "type": "object"
+    },
+    "evidence_ids": {
+      "items": {
+        "maxLength": 65536,
+        "type": "string"
+      },
+      "maxItems": 128,
+      "type": "array"
+    },
+    "failure_class": {
+      "enum": [
+        "source_fact_absent",
+        "retrieval_miss",
+        "authority_withheld",
+        "stale_conflicting_state",
+        "delivered_but_not_applied",
+        "wrong_argument_value",
+        "wording_precision",
+        "no_call",
+        "execution_failure",
+        "unknown"
+      ]
+    },
+    "format": {
+      "const": "atmem-feedback-attribution-verification-v1"
+    },
+    "invocation_id": {
+      "anyOf": [
+        {
+          "maxLength": 65536,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "outcome_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "qualifies_policy": {
+      "enum": [
+        false
+      ]
+    },
+    "receipt_id": {
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "type": "string"
+    },
+    "registry_revision": {
+      "maximum": 9007199254740992,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "scope": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "maxLength": 256,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "type": "string"
+        },
+        "format": {
+          "const": "atmem-feedback-scope-v1"
+        },
+        "subject_id": {
+          "maxLength": 256,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "type": "string"
+        },
+        "tenant_id": {
+          "maxLength": 256,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "type": "string"
+        },
+        "workspace_id": {
+          "maxLength": 256,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "format",
+        "tenant_id",
+        "subject_id",
+        "agent_id",
+        "workspace_id"
+      ],
+      "type": "object"
+    },
+    "sources": {
+      "items": {
+        "maxProperties": 128,
+        "type": "object"
+      },
+      "maxItems": 128,
+      "type": "array"
+    },
+    "status": {
+      "enum": [
+        "verified",
+        "inconclusive",
+        "disputed"
+      ]
+    },
+    "supports_classification": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "verification_ids": {
+      "items": {
+        "maxLength": 65536,
+        "type": "string"
+      },
+      "maxItems": 128,
+      "type": "array"
+    },
+    "verified_causality": {
+      "enum": [
+        false
+      ]
+    },
+    "verifier_id": {
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "type": "string"
+    },
+    "verifier_version": {
+      "maxLength": 65536,
+      "type": "string"
+    }
+  },
+  "required": [
+    "format",
+    "receipt_id",
+    "scope",
+    "attribution_id",
+    "outcome_sha256",
+    "invocation_id",
+    "action_id",
+    "failure_class",
+    "verifier_id",
+    "verifier_version",
+    "registry_revision",
+    "checks",
+    "evidence",
+    "evidence_ids",
+    "sources",
+    "verification_ids",
+    "status"
+  ],
+  "type": "object"
+}

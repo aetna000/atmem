@@ -1,5 +1,9 @@
 # Your first memory
 
+Stable [2.3.15](../releases/v2.3.15.md) adds opt-in governed RAG/MCP, verified feedback and experimental memory-policy studies.
+The installation examples below use the current stable package; optional feedback/study features require explicit setup.
+
+
 ## Prerequisites
 Use Python 3.10–3.13 in a virtual environment. This exercise uses synthetic data,
 does not contact a model, and does not enable agent injection.
@@ -7,7 +11,7 @@ does not contact a model, and does not enable agent injection.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install atmem==2.3.12
+python -m pip install atmem==2.3.15
 ```
 
 On Windows, activate with `.venv\Scripts\activate` instead.

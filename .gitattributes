@@ -1,0 +1,2 @@
+# Frozen feedback corpus hashes bind exact bytes on every supported checkout.
+tests/fixtures/feedback/*.json text eol=lf

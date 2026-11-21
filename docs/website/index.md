@@ -1,5 +1,9 @@
 # Memory and evidence, under your control
 
+Stable [2.3.15](../releases/v2.3.15.md) adds opt-in governed RAG/MCP, verified feedback and experimental memory-policy studies.
+The installation examples below use the current stable package; optional feedback/study features require explicit setup.
+
+
 AtMem is a host-neutral Agent Black Box and reversible memory control plane.
 Keep scoped memories useful across sessions, control which context reaches an agent,
 and investigate the evidence a supported host captured.
@@ -9,12 +13,12 @@ and investigate the evidence a supported host captured.
 without an API key or a model download. Then [connect an agent](integrations.md)
 and review shadow mode before enabling context injection.
 
-## Stable 2.3.12: memory, context and evidence
+## Stable 2.3.15: memory, context and evidence
 
-AtMem 2.3.12 retains source-backed, read-only discovery for explicitly
+AtMem 2.3.15 retains source-backed, read-only discovery for explicitly
 configured SDK/host integrations. Start with the
 [integration guide](../evidence-discovery.md) and
-[release note](../releases/v2.3.12.md).
+[release note](../releases/v2.3.15.md).
 It does not automatically enable agent tools or change ordinary memory defaults.
 
 ## Shared coding memory
@@ -41,5 +45,5 @@ is not independent proof that a purchase or message succeeded externally.
 Missing historical content cannot be reconstructed from a hash.
 Read [evidence and roles](evidence.md) before choosing a capture profile.
 
-Guides describe stable behavior unless marked beta. For older installations, read that version's release
+Guides describe stable package behavior and explicitly mark experimental features. For older installations, read that version's release
 notes and upgrade instructions; full historic guide sets are not published here.

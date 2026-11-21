@@ -1,5 +1,9 @@
 # MCP profiles
 
+Stable [2.3.15](../releases/v2.3.15.md) adds opt-in governed RAG/MCP, verified feedback and experimental memory-policy studies.
+The installation examples below use the current stable package; optional feedback/study features require explicit setup.
+
+
 MCP is a tool transport, not proof that a model received returned content.
 
 ## Embedded memory server

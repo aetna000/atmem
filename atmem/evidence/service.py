@@ -381,6 +381,7 @@ class EvidenceService:
         self._record_access(principal, "replay_manifest", target, True)
         return manifest
 
+    @_key_transition
     def grant(
         self, principal: EvidencePrincipal, *, principal_id: str,
         role: EvidenceRole, scope: EvidenceScope,
@@ -396,6 +397,7 @@ class EvidenceService:
         self._record_access(principal, "grant", scope, True, grantee=principal_id, role=role.value)
         return credential
 
+    @_key_transition
     def revoke(self, principal: EvidencePrincipal, *, principal_id: str) -> bool:
         target = principal.scope
         principal.authorize(EvidenceOperation.GRANT, target)

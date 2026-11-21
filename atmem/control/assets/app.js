@@ -758,12 +758,13 @@ async function switchProvider(){
  try{await working("Activating AtMem",state.host==="openclaw"?"Freezing native memory, checking compatibility, restarting OpenClaw, and verifying memory tools. This can take a minute.":"Authorizing the runtime adapter to use only AtMem context explicitly marked for injection.",async function(){await post("/api/mode",{mode:"active",confirm_host:entered});await reload()})}
  catch(error){showError(error)}
 }
-var VIEWS={status:"viewStatus",decisions:"viewDecisions",memory:"viewMemory",audit:"viewAudit",settings:"viewSettings"};
+var VIEWS={status:"viewStatus",decisions:"viewDecisions",memory:"viewMemory",audit:"viewAudit",feedback:"viewFeedback",settings:"viewSettings"};
 function activateView(name){
+ if(name==="feedback")loadFeedback();
  var panelId=VIEWS[name]||VIEWS.status;$("statusBanner").hidden=panelId!=="viewStatus";
  if(name!=="settings"){$("intelligenceConfig").open=false;$("contextAuthorityConfig").open=false}
  document.querySelectorAll(".tabpanel").forEach(function(panel){panel.classList.toggle("active",panel.id===panelId)});
- [["navStatus","status"],["navDecisions","decisions"],["navMemory","memory"],["navAudit","audit"],["navSettings","settings"]].forEach(function(pair){var btn=$(pair[0]);var isActive=(VIEWS[name]?name:"status")===pair[1];btn.classList.toggle("active",isActive);btn.setAttribute("aria-selected",isActive?"true":"false")})
+ [["navStatus","status"],["navDecisions","decisions"],["navMemory","memory"],["navAudit","audit"],["navFeedback","feedback"],["navSettings","settings"]].forEach(function(pair){var btn=$(pair[0]);var isActive=(VIEWS[name]?name:"status")===pair[1];btn.classList.toggle("active",isActive);btn.setAttribute("aria-selected",isActive?"true":"false")})
 }
 function showView(name){if(location.hash!=="#"+name){location.hash=name}else{applyRoute()}}
 function applyRoute(){
@@ -776,12 +777,12 @@ function applyRoute(){
 }
 function accountRoleName(){return roleName(localAuth.account&&localAuth.account.role)}
 function renderRoleLadder(){var box=$("settingsRoleLadder");if(!box)return;box.replaceChildren();[["Viewer","Metadata, hashes and integrity only"],["Investigator","Decrypt, view, play and reconstruct"],["Evidence Collector","Download and export plaintext"],["Administrator","All evidence plus user management"]].forEach(function(row){var item=element("div","rolelevel"+(localAuth.account&&roleName(localAuth.account.role)===row[0]?" current":""));item.append(element("b","",row[0]),element("span","",row[1]));box.appendChild(item)})}
-function renderAuth(){var account=localAuth.account||{},authenticated=!!localAuth.authenticated,forced=authenticated&&!!account.password_change_required,controlsEvidence=account.role==="evidence_collector"||account.role==="administrator";document.body.classList.toggle("auth-required",!authenticated||forced);$("authGate").hidden=authenticated&&!forced;$("loginForm").hidden=authenticated;$("passwordForm").hidden=!forced;$("identityChip").hidden=!authenticated;$("logoutButton").hidden=!authenticated;text("identityName",account.display_name||account.username||"Account");text("identityRole",authenticated?accountRoleName():"");text("myAccountSummary",authenticated?(account.username+" · "+accountRoleName()):"Signed-in identity and password");document.querySelectorAll(".protectionactions button").forEach(function(button){button.hidden=authenticated&&!controlsEvidence});if(forced){text("authTitle","Choose your password");text("authCopy","Choose any non-empty password. You do not need to enter the temporary password again.");$("newPassword").focus()}else if(!authenticated){text("authTitle","Sign in to AtMem");text("authCopy",localAuth.initialized===false?"Run `atmem init` in the terminal first, then sign in with the one-time Administrator password.":"Use your local AtMem username and password. No bearer token is required.")}if(authenticated){text("evidenceRoleSummary",accountRoleName()+" access is active for "+account.username+". Viewer sees hashes and metadata; Investigator opens exact evidence; Evidence Collector exports; Administrator also manages users.");$("usersCard").hidden=account.role!=="administrator";renderRoleLadder()}}
+function renderAuth(){if(!localAuth.authenticated){clearFeedbackExport();$("feedbackQuality").replaceChildren();$("feedbackProposals").replaceChildren();text("feedbackStatus","Sign in to inspect feedback.")}var account=localAuth.account||{},authenticated=!!localAuth.authenticated,forced=authenticated&&!!account.password_change_required,controlsEvidence=account.role==="evidence_collector"||account.role==="administrator";document.body.classList.toggle("auth-required",!authenticated||forced);$("authGate").hidden=authenticated&&!forced;$("loginForm").hidden=authenticated;$("passwordForm").hidden=!forced;$("identityChip").hidden=!authenticated;$("logoutButton").hidden=!authenticated;text("identityName",account.display_name||account.username||"Account");text("identityRole",authenticated?accountRoleName():"");text("myAccountSummary",authenticated?(account.username+" · "+accountRoleName()):"Signed-in identity and password");document.querySelectorAll(".protectionactions button").forEach(function(button){button.hidden=authenticated&&!controlsEvidence});if(forced){text("authTitle","Choose your password");text("authCopy","Choose any non-empty password. You do not need to enter the temporary password again.");$("newPassword").focus()}else if(!authenticated){text("authTitle","Sign in to AtMem");text("authCopy",localAuth.initialized===false?"Run `atmem init` in the terminal first, then sign in with the one-time Administrator password.":"Use your local AtMem username and password. No bearer token is required.")}if(authenticated){text("evidenceRoleSummary",accountRoleName()+" access is active for "+account.username+". Viewer sees hashes and metadata; Investigator opens exact evidence; Evidence Collector exports; Administrator also manages users.");$("usersCard").hidden=account.role!=="administrator";renderRoleLadder()}}
 async function refreshAuth(){localAuth=await get("/api/auth/status");renderAuth();return localAuth}
 async function login(event){event.preventDefault();clearError();try{localAuth=await authPost("/api/auth/login",{username:$("loginUsername").value.trim(),password:$("loginPassword").value});$("loginPassword").value="";renderAuth();if(!localAuth.account.password_change_required){if(applicationStarted)loadCompanionLinks();else startApplication()}}catch(error){showError(error)}}
 async function changeOwnPassword(event){event.preventDefault();clearError();var next=$("newPassword").value;if(next!==$("repeatPassword").value){showError(new Error("New passwords do not match."));return}try{localAuth=await authPost("/api/auth/change-password",{new_password:next});$("newPassword").value=$("repeatPassword").value="";renderAuth();if(applicationStarted)loadCompanionLinks();else startApplication()}catch(error){showError(error)}}
 async function changeSignedInPassword(event){event.preventDefault();clearError();var next=$("selfNewPassword").value;if(next!==$("selfRepeatPassword").value){showError(new Error("New passwords do not match."));return}try{localAuth=await authPost("/api/auth/change-password",{current_password:$("selfCurrentPassword").value,new_password:next});event.target.reset();renderAuth();text("myAccountSummary",localAuth.account.username+" · password changed") }catch(error){showError(error)}}
-async function logout(){if(!confirm("Sign out of AtMem?"))return;try{await authPost("/api/auth/logout",{});localAuth={authenticated:false,initialized:true};protectedBlackbox={};protectedReconstruction={};$("atflowsDashboardLink").hidden=true;$("atflowsDashboardLink").removeAttribute("href");renderAuth()}catch(error){showError(error)}}
+async function logout(){if(!confirm("Sign out of AtMem?"))return;try{await authPost("/api/auth/logout",{});localAuth={authenticated:false,initialized:true};clearFeedbackExport();protectedBlackbox={};protectedReconstruction={};$("feedbackQuality").replaceChildren();$("feedbackProposals").replaceChildren();$("feedbackSchedule").replaceChildren(new Option("Select a schedule",""));text("feedbackStatus","Sign in to inspect feedback.");$("atflowsDashboardLink").hidden=true;$("atflowsDashboardLink").removeAttribute("href");renderAuth()}catch(error){showError(error)}}
 function renderUsers(value){var box=$("usersList");box.replaceChildren();(value.users||[]).forEach(function(user){var row=element("div","userrow"),copy=element("div"),actions=element("div","useractions"),role=document.createElement("select");copy.append(element("b","",user.display_name||user.username),element("span","",user.username+" · "+roleName(user.role)+(user.enabled?"":" · disabled")+(user.password_change_required?" · password change required":"")));[["viewer","Viewer"],["investigator","Investigator"],["evidence_collector","Evidence Collector"],["administrator","Administrator"]].forEach(function(option){role.appendChild(new Option(option[1],option[0],false,user.role===option[0]))});role.setAttribute("aria-label","Role for "+user.username);role.onchange=async function(){try{await authPost("/api/users/update",{username:user.username,role:role.value});await loadUsers()}catch(error){showError(error)}};var toggle=element("button","secondary",user.enabled?"Disable":"Enable"),reset=element("button","secondary","Reset password");toggle.type=reset.type="button";toggle.onclick=async function(){try{await authPost("/api/users/update",{username:user.username,enabled:!user.enabled});await loadUsers()}catch(error){showError(error)}};reset.onclick=async function(){try{showOneTimeCredential(await authPost("/api/users/reset-password",{username:user.username}))}catch(error){showError(error)}};actions.append(role,toggle,reset);row.append(copy,actions);box.appendChild(row)})}
 function showOneTimeCredential(value){var box=$("oneTimeCredential");box.hidden=false;box.replaceChildren(element("b","","One-time credentials for "+value.username),element("code","",value.temporary_password),element("p","","Copy this now. AtMem stores only its verifier and will not show it again."))}
 async function loadUsers(){if(!localAuth.account||localAuth.account.role!=="administrator")return;try{var values=await Promise.all([get("/api/users"),get("/api/users/audit")]);renderUsers(values[0]);var audit=$("securityAudit");audit.replaceChildren();(values[1].events||[]).slice().reverse().slice(0,25).forEach(function(event){audit.appendChild(element("div","securityauditrow",displayTime(event.recorded_at)+" · "+event.actor+" · "+event.operation+" · "+(event.allowed?"allowed":"denied")))})}catch(error){showError(error)}}
@@ -797,6 +798,14 @@ function consumeBootstrapFragment(){
 consumeBootstrapFragment();window.addEventListener("hashchange",applyRoute);applyRoute();
 document.querySelectorAll("[data-password-toggle]").forEach(function(button){button.addEventListener("click",function(){var input=$(button.dataset.passwordToggle),visible=input.type==="password";input.type=visible?"text":"password";button.textContent=visible?"Hide":"Show";button.setAttribute("aria-label",(visible?"Hide ":"Show ")+input.closest("label").querySelector("span").textContent.toLowerCase());button.setAttribute("aria-pressed",visible?"true":"false")})});
 $("navStatus").onclick=function(){showView("status")};$("navDecisions").onclick=function(){showView("decisions")};$("navMemory").onclick=function(){showView("memory")};$("navAudit").onclick=function(){showView("audit")};
+$("navFeedback").onclick=function(){showView("feedback")};
+$("feedbackRefresh").onclick=loadFeedback;
+$("feedbackQualityForm").onsubmit=loadFeedbackQuality;
+$("feedbackExportForm").onsubmit=previewFeedbackExport;
+$("feedbackExportForm").oninput=invalidateFeedbackExport;
+$("feedbackExportReviewed").onchange=function(){$("feedbackExportConfirm").disabled=!feedbackExportPreview||!feedbackExportPreview.value.examples.length||!this.checked};
+$("feedbackExportConfirm").onclick=confirmFeedbackExport;
+$("feedbackExportWithdraw").onclick=withdrawFeedbackExport;
 $("navSettings").onclick=function(){showView("settings")};
 $("searchBtn").onclick=search;$("query").addEventListener("keydown",function(event){if(event.key==="Enter")search()});
 ["memoryStatus","memorySource","memoryMethod","memorySort"].forEach(function(id){$(id).onchange=function(){if($("query").value.trim())search()}});
@@ -921,5 +930,112 @@ $("codeKeygen").onclick=codeGuard(async function(){var keys=await codeCall("bund
 $("codeExport").onclick=codeGuard(async function(){var value=await codeCall("bundle-export",{recipient_public_key:await codeFile("codeRecipientPublic"),signing_public_key:await codeFile("codeSigningPublic"),signing_secret_key:await codeFile("codeSigningSecret")});codeDownload("atmem-code-project.json",JSON.stringify(value.bundle));text("codeBundleResult","Encrypted project bundle downloaded.")});
 async function codeImport(action){var body={root:$("codeRoot").value,bundle:JSON.parse(await codeFile("codeBundleFile")),recipient_secret_key:await codeFile("codeRecipientSecret"),trusted_signing_key:await codeFile("codeSigningPublic")};if(action==="bundle-import")body.preview_token=codeImportToken;var value=await codeCall(action,body);codeOutput("codeBundleResult",value);codeImportToken=value.preview_token||null;$("codeImportApply").disabled=!value.can_import;if(value.imported)await codeLoadProjects()}
 $("codeImportPreview").onclick=codeGuard(function(){return codeImport("bundle-preview")});$("codeImportApply").onclick=codeGuard(function(){return codeImport("bundle-import")});
+var feedbackExportPreview=null,feedbackExportRequest=0;
+function invalidateFeedbackExport(){
+ feedbackExportPreview=null;feedbackExportRequest++;
+ $("feedbackExportReviewed").checked=false;$("feedbackExportConfirm").disabled=true;$("feedbackExportPreview").textContent="";
+}
+function clearFeedbackExport(){invalidateFeedbackExport();$("feedbackExportForm").reset();$("feedbackExport").hidden=true;$("feedbackExportStatus").textContent=""}
+async function previewFeedbackExport(event){
+ event.preventDefault();invalidateFeedbackExport();
+ var request=feedbackExportRequest,identity=localAuth.account&&localAuth.account.username;
+ var body={operation:"export_consent",consent_id:$("feedbackConsentId").value.trim(),purpose:$("feedbackExportPurpose").value.trim(),recipient_public_key:$("feedbackRecipientKey").value.trim(),outcome_ids:$("feedbackOutcomeIds").value.split(/\r?\n/).map(function(id){return id.trim()}).filter(Boolean),expires_at:Math.floor(new Date($("feedbackExportExpiry").value).getTime()/1000),split:$("feedbackExportSplit").value};
+ if(!identity||!confirm("Grant explicit consent for these outcomes, purpose and recipient, then inspect the exact plaintext preview?"))return;
+ try{
+  await post("/api/feedback/action",body);
+  if(request!==feedbackExportRequest||!localAuth.authenticated||!localAuth.account||localAuth.account.username!==identity)return;
+  var preview=await post("/api/feedback/action",{operation:"export_preview",consent_id:body.consent_id});
+  if(request!==feedbackExportRequest||!localAuth.authenticated||!localAuth.account||localAuth.account.username!==identity)return;
+  feedbackExportPreview={value:preview,recipient:body.recipient_public_key,identity:identity};
+  $("feedbackExportPreview").textContent=JSON.stringify(preview,null,2);
+  text("feedbackExportStatus",preview.examples.length+" eligible examples; "+preview.excluded.length+" excluded. Review the exact preview before confirming.");
+ }catch(error){if(request===feedbackExportRequest)text("feedbackExportStatus",error.message)}
+}
+async function confirmFeedbackExport(){
+ var pending=feedbackExportPreview,request=feedbackExportRequest;
+ if(!pending||!$("feedbackExportReviewed").checked||!pending.value.examples.length||!confirm("Export this exact preview to the displayed recipient? Recipient copies cannot be recalled."))return;
+ $("feedbackExportConfirm").disabled=true;
+ try{
+  var value=await post("/api/feedback/action",{operation:"export_confirm",consent_id:pending.value.consent.consent_id,preview_sha256:pending.value.preview_sha256,confirm_sha256:pending.value.preview_sha256,recipient_public_key:pending.recipient});
+  if(request!==feedbackExportRequest||!localAuth.authenticated||!localAuth.account||localAuth.account.username!==pending.identity)return;
+  var url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:"application/json"})),link=document.createElement("a");link.href=url;link.download="atmem-verified-examples-encrypted.json";link.click();setTimeout(function(){URL.revokeObjectURL(url)},1000);
+  text("feedbackExportStatus","Encrypted export downloaded. External deletion is not guaranteed.");invalidateFeedbackExport();
+ }catch(error){if(request===feedbackExportRequest){invalidateFeedbackExport();text("feedbackExportStatus",error.message+". Generate and review a fresh preview.")}}
+}
+async function withdrawFeedbackExport(){
+ var consent=$("feedbackConsentId").value.trim();if(!consent||!confirm("Withdraw this consent? Future exports will be blocked; existing recipient copies cannot be recalled."))return;
+ invalidateFeedbackExport();var request=feedbackExportRequest;
+ try{await post("/api/feedback/action",{operation:"export_withdraw",consent_id:consent});if(request===feedbackExportRequest)text("feedbackExportStatus","Consent withdrawn. Existing external copies are not recalled.")}catch(error){if(request===feedbackExportRequest)text("feedbackExportStatus",error.message)}
+}
+function feedbackDataEqual(a,b){
+ if(a===b)return true;
+ if(!a||!b||typeof a!=="object"||typeof b!=="object"||Array.isArray(a)!==Array.isArray(b))return false;
+ var keys=Object.keys(a).sort(),other=Object.keys(b).sort();
+ return keys.length===other.length&&keys.every(function(key,i){return key===other[i]&&feedbackDataEqual(a[key],b[key])});
+}
+async function loadFeedback(){
+ var identity=localAuth.account&&localAuth.account.username;
+ if(!localAuth.authenticated||!identity){text("feedbackStatus","Sign in to inspect feedback.");return}
+ try{
+  var value=await get("/api/feedback/status");
+  if(!localAuth.authenticated||!localAuth.account||localAuth.account.username!==identity)return;
+  $("feedbackExport").hidden=!(value.available&&value.can_review&&value.export_available);
+  if($("feedbackExport").hidden)clearFeedbackExport();
+  text("feedbackStatus",value.available?("Scope: "+value.scope.subject_id+" / "+value.scope.agent_id+" / "+value.scope.workspace_id):value.reason);
+  var select=$("feedbackSchedule"),previous=select.value;select.replaceChildren(new Option("Select a schedule",""));
+  (value.schedules||[]).forEach(function(row){select.appendChild(new Option(row.schedule_id+" ("+row.tasks+" tasks)",row.schedule_id))});select.value=previous;
+  var box=$("feedbackProposals");box.replaceChildren();
+  (value.proposals||[]).forEach(function(row){
+   var card=element("div","feedbackproposal"),heading=element("h4","",row.kind+": "+row.artifact_id),state=row.lifecycle?row.lifecycle.state:row.proposal.state;
+   card.append(heading,element("p","","Configured state: "+state));
+   if(row.lifecycle)card.appendChild(element("p","sub","Current authority, sources and qualification expiry are checked again at each call."));
+   var details=document.createElement("details"),summary=element("summary","","Exact proposal and source evidence"),evidence=element("pre","",JSON.stringify(row.proposal,null,2));details.append(summary,evidence);card.appendChild(details);
+   if(value.can_review){
+    if(row.proposal.state==="proposed"){["approve","reject"].forEach(function(decision){var button=element("button","secondary",decision==="approve"?"Approve exact revision":"Reject");button.type="button";button.onclick=function(){feedbackReview(row,decision)};card.appendChild(button)})}
+    if(row.proposal.state==="reviewed"){
+     ["shadow","suspended","revoked"].forEach(function(next){var button=element("button","secondary",next==="shadow"?"Start shadow":next==="suspended"?"Suspend":"Revoke");button.type="button";button.onclick=function(){feedbackTransition(row,next)};card.appendChild(button)});
+     var choices=(value.qualifications||[]).filter(function(q){return q.decision==="accept"&&q.artifact_sha256===row.proposal.candidate_sha256&&q.issued_at<=value.observed_at&&q.expires_at>value.observed_at&&feedbackDataEqual(q.scope,value.scope)&&feedbackDataEqual(q.versions,value.runtime_versions)});
+     var selection=document.createElement("select");selection.setAttribute("aria-label","Qualification receipt for "+row.artifact_id);selection.appendChild(new Option("Select accepted qualification",""));choices.forEach(function(q){selection.appendChild(new Option(q.receipt_id,q.receipt_id))});selection.disabled=!value.activation_available||!choices.length;card.appendChild(selection);
+     var proof=document.createElement("details"),proofText=element("pre","","No matching accepted qualification. Diagnostic reports cannot activate behavior.");proof.append(element("summary","","Qualification evidence"),proofText);card.appendChild(proof);
+     var activate=element("button","secondary","Activate qualified revision");activate.type="button";activate.disabled=true;activate.title="Requires an accepted, current qualification, matching runtime and owner confirmation. Checks repeat on submission.";selection.onchange=function(){activate.disabled=!selection.value;var selected=choices.find(function(q){return q.receipt_id===selection.value});proofText.textContent=selected?JSON.stringify(selected,null,2):"No qualification selected."};activate.onclick=function(){feedbackTransition(row,"active",selection.value)};card.appendChild(activate);
+     if(row.lifecycle&&row.lifecycle.previous&&row.lifecycle.previous.state==="active"){
+      var rollback=element("button","secondary","Rollback to generation "+row.lifecycle.previous.generation);rollback.type="button";rollback.disabled=!value.activation_available;rollback.onclick=function(){feedbackRollback(row)};card.appendChild(rollback);
+     }
+    }
+   }
+   box.appendChild(card);
+  });
+  if(value.available&&!(value.proposals||[]).length)box.appendChild(element("p","sub","No behavior proposals in this scope."));
+ }catch(error){text("feedbackStatus",error.message);$("feedbackProposals").replaceChildren();$("feedbackQuality").replaceChildren()}
+}
+async function loadFeedbackQuality(event){
+ if(event)event.preventDefault();
+ var identity=localAuth.account&&localAuth.account.username;
+ if(!localAuth.authenticated||!identity)return;
+ try{var value=await get("/api/feedback/quality?schedule_id="+encodeURIComponent($("feedbackSchedule").value)),box=$("feedbackQuality");if(!localAuth.authenticated||!localAuth.account||localAuth.account.username!==identity)return;box.replaceChildren();
+  var labels={verified_full_task_success:"Verified task completion",coverage:"Answer/action coverage",wrong_answer_rate:"Wrong answers",evidence_precision:"Relevant evidence",false_denial_rate:"False blocks",required_fact_write_failure:"Writes missing a required fact"},units={verified_full_task_success:["verified","scheduled"],coverage:["completed","answerable"],wrong_answer_rate:["wrong","assessed"],evidence_precision:["relevant","assessed"],false_denial_rate:["blocked","legitimate"],required_fact_write_failure:["missing the fact","assessed writes"]},metrics=element("div","feedbackmetrics");
+  Object.keys(labels).forEach(function(name){var metric=value[name],card=element("div","feedbackmetric");card.append(element("span","sub",labels[name]),element("b","",metric.value===null?"Not assessed":(metric.value*100).toFixed(1)+"%"),element("small","",metric.numerator+" "+units[name][0]+" / "+metric.denominator+" "+units[name][1]+(metric.value===null?" · insufficient evidence":"")));metrics.appendChild(card)});box.appendChild(metrics);
+  box.appendChild(element("p","","Unknown: "+value.unknown_tasks+" · disputed: "+value.disputed_tasks+" · missing: "+value.missing_tasks));
+  if(value.usage){box.appendChild(element("p","sub",value.usage.status==="not_captured"?"Usage and cost have not been captured.":"Reported usage (partial): "+(value.usage.usd_micros===null?"cost unknown":"$"+(value.usage.usd_micros/1000000).toFixed(6))+" · "+(value.usage.model_calls===null?"model-call count unknown":value.usage.model_calls+" model calls")+" · billing is not independently verified."))}
+  if(value.groups){var groups=document.createElement("details");groups.append(element("summary","","Quality by frozen task class and version"),element("pre","",JSON.stringify(value.groups,null,2)));box.appendChild(groups)}
+  if(value.uncertainty){var intervals=document.createElement("details");intervals.append(element("summary","","Episode-based uncertainty (diagnostic)"),element("pre","",JSON.stringify(value.uncertainty,null,2)));box.appendChild(intervals)}
+  (value.tasks||[]).forEach(function(task){var details=document.createElement("details");details.append(element("summary","",task.outcome_id+" · "+task.status),element("pre","",JSON.stringify(task.actions,null,2)));box.appendChild(details)});
+ }catch(error){text("feedbackQuality",error.message)}
+}
+async function feedbackReview(row,decision){
+ var reason=prompt("Reason for "+decision+" of exact revision "+row.proposal.candidate_sha256+":");if(!reason)return;
+ try{await post("/api/feedback/action",{operation:"review",kind:row.kind,artifact_id:row.artifact_id,candidate_sha256:row.proposal.candidate_sha256,decision:decision,reason:reason});await loadFeedback()}catch(error){showError(error)}
+}
+async function feedbackTransition(row,next,qualification){
+ if(!confirm("Set "+row.artifact_id+" to "+next+" in this scope? Revision "+row.proposal.candidate_sha256+(qualification?"; qualification "+qualification:"")+". Current authority and evidence will be checked again."))return;
+ var body={operation:"transition",kind:row.kind,artifact_id:row.artifact_id,candidate_sha256:row.proposal.candidate_sha256,state:next,expected_generation:row.lifecycle?row.lifecycle.generation:0};if(qualification)body.qualification_id=qualification;
+ try{await post("/api/feedback/action",body);await loadFeedback()}catch(error){showError(error)}
+}
+async function feedbackRollback(row){
+ var target=row.lifecycle.previous;
+ if(!confirm("Request rollback of "+row.artifact_id+" to previously active generation "+target.generation+" ("+target.candidate_sha256+")? Sources, qualification, versions and revocation will be checked again. In-flight effects cannot be undone."))return;
+ try{await post("/api/feedback/action",{operation:"rollback",kind:row.kind,artifact_id:row.artifact_id,expected_generation:row.lifecycle.generation,target_generation:target.generation});await loadFeedback()}catch(error){showError(error)}
+}
+
 init()
 })();

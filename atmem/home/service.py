@@ -235,6 +235,7 @@ class HomeService:
             {
                 "format": "atmem-home-runtime-mode-v1",
                 "mode": "restore_read_only",
+                "restore_id": "restore_" + uuid.uuid4().hex,
                 "instance_id": status.get("instance_id"),
                 "updated_at": utc_now(),
             },

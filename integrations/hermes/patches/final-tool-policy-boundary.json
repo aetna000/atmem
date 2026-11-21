@@ -1,0 +1,27 @@
+{
+  "format": "atmem-hermes-boundary-candidate-v1",
+  "base_commit": "d0288be5b3330d2442e3907185b8e9d0958297bb",
+  "candidate_commit": "1088e06e448bef2af736122a5d424082a57bf548",
+  "patch_sha256": "82c3aaa09db20cd453c01bf52a000ca74fd91c08fdfaf677a4b7c1ab248cd7e4",
+  "files": {
+    "agent/tool_authorization.py": "ff5d9a268e9b3a20fd374dcb6aa9b3bed4abc6b3734054657b499a307ba5da60",
+    "agent/tool_executor.py": "54478ec332c28e19fb2b0614a1a6fee9ab667c7af3d8badc51d6fc62643d3033",
+    "hermes_cli/plugins.py": "fd5cf7d4881565a5444664c1c5eae24f39236cbb832222b8e6dc5f01ec9520c7",
+    "hermes_cli/plugins_dispatch.py": "8801ca7c61bc4acebd7f6f53c1830caaeee26460b283cd31a41404b1a128eb4a",
+    "model_tools.py": "cdca1bc0b3ddfda18bb1872c39e8c444625afd63f267c4c2c43ceab1c48215af"
+  },
+  "hook": "authorize_tool_call",
+  "status": "local_tested_candidate",
+  "installed_on_owner_runtime": false,
+  "scope": "instrumented agent callbacks and model_tools registry/connector dispatch",
+  "tested_environment": {
+    "os": "macOS",
+    "python": "3.14.7",
+    "pytest": "9.1.1"
+  },
+  "tests": {
+    "targeted_suite_passed": 467,
+    "new_boundary_cases_passed": 40
+  },
+  "approved_rule_activation": false
+}

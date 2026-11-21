@@ -1,0 +1,200 @@
+[
+  {
+    "id": "read_and_write",
+    "episode": "episode-0",
+    "paraphrase_group": "group-0",
+    "split": "development",
+    "context_cutoff": 1700000000,
+    "evidence_time": 1699999999,
+    "input_sha256": "14e5119340e9c237eaff72622012d5a9a2452517dc9c1269ab7e6038ec0b4460",
+    "actions": [
+      {
+        "id": "read",
+        "tool": "fixture.read",
+        "kind": "read",
+        "checks": [
+          "exact_record"
+        ]
+      },
+      {
+        "id": "write",
+        "tool": "fixture.write",
+        "kind": "write",
+        "checks": [
+          "required_fact",
+          "destination_readback"
+        ]
+      }
+    ],
+    "verification": {
+      "identity": "isolated-fixture-verifier",
+      "method": "independent_readback",
+      "evidence": "synthetic-effect-recorder-v1"
+    }
+  },
+  {
+    "id": "missing_required_fact",
+    "episode": "episode-1",
+    "paraphrase_group": "group-1",
+    "split": "validation",
+    "context_cutoff": 1700000000,
+    "evidence_time": 1699999999,
+    "input_sha256": "a8f61642ab351561d39ad3c15a7c2691900c183e653cfdcc9af6c0070e0122f6",
+    "actions": [
+      {
+        "id": "read",
+        "tool": "fixture.read",
+        "kind": "read",
+        "checks": [
+          "exact_record"
+        ]
+      },
+      {
+        "id": "write",
+        "tool": "fixture.write",
+        "kind": "write",
+        "checks": [
+          "required_fact",
+          "destination_readback"
+        ]
+      }
+    ],
+    "verification": {
+      "identity": "isolated-fixture-verifier",
+      "method": "independent_readback",
+      "evidence": "synthetic-effect-recorder-v1"
+    }
+  },
+  {
+    "id": "delivered_not_applied",
+    "episode": "episode-2",
+    "paraphrase_group": "group-2",
+    "split": "test",
+    "context_cutoff": 1700000000,
+    "evidence_time": 1699999999,
+    "input_sha256": "41cc7e46690ae4adc8df5419b9c1527cf5826abb22d441ee2fc76863a8151210",
+    "actions": [
+      {
+        "id": "read",
+        "tool": "fixture.read",
+        "kind": "read",
+        "checks": [
+          "exact_record"
+        ]
+      },
+      {
+        "id": "write",
+        "tool": "fixture.write",
+        "kind": "write",
+        "checks": [
+          "required_fact",
+          "destination_readback"
+        ]
+      }
+    ],
+    "verification": {
+      "identity": "isolated-fixture-verifier",
+      "method": "independent_readback",
+      "evidence": "synthetic-effect-recorder-v1"
+    }
+  },
+  {
+    "id": "no_write",
+    "episode": "episode-3",
+    "paraphrase_group": "group-3",
+    "split": "development",
+    "context_cutoff": 1700000000,
+    "evidence_time": 1699999999,
+    "input_sha256": "52ea2389d47c44f9a8d4d1b1266ada18b4bde553c2bfb1fb589fdb336c5276db",
+    "actions": [
+      {
+        "id": "read",
+        "tool": "fixture.read",
+        "kind": "read",
+        "checks": [
+          "exact_record"
+        ]
+      },
+      {
+        "id": "write",
+        "tool": "fixture.write",
+        "kind": "write",
+        "checks": [
+          "required_fact",
+          "destination_readback"
+        ]
+      }
+    ],
+    "verification": {
+      "identity": "isolated-fixture-verifier",
+      "method": "independent_readback",
+      "evidence": "synthetic-effect-recorder-v1"
+    }
+  },
+  {
+    "id": "correct_refusal",
+    "episode": "episode-4",
+    "paraphrase_group": "group-4",
+    "split": "validation",
+    "context_cutoff": 1700000000,
+    "evidence_time": 1699999999,
+    "input_sha256": "f5de458adc8f31ab0439f2ae50333669ca1e2c8604be9a73d7a589eb51efc6ea",
+    "actions": [
+      {
+        "id": "read",
+        "tool": "fixture.read",
+        "kind": "read",
+        "checks": [
+          "exact_record"
+        ]
+      },
+      {
+        "id": "write",
+        "tool": "fixture.write",
+        "kind": "write",
+        "checks": [
+          "required_fact",
+          "destination_readback"
+        ]
+      }
+    ],
+    "verification": {
+      "identity": "isolated-fixture-verifier",
+      "method": "independent_readback",
+      "evidence": "synthetic-effect-recorder-v1"
+    }
+  },
+  {
+    "id": "disputed_readback",
+    "episode": "episode-5",
+    "paraphrase_group": "group-5",
+    "split": "test",
+    "context_cutoff": 1700000000,
+    "evidence_time": 1699999999,
+    "input_sha256": "788583df2110180de2718584ce02a847341bbba4d0c9712bbe18bcde97808c95",
+    "actions": [
+      {
+        "id": "read",
+        "tool": "fixture.read",
+        "kind": "read",
+        "checks": [
+          "exact_record"
+        ]
+      },
+      {
+        "id": "write",
+        "tool": "fixture.write",
+        "kind": "write",
+        "checks": [
+          "required_fact",
+          "destination_readback"
+        ]
+      }
+    ],
+    "verification": {
+      "identity": "isolated-fixture-verifier",
+      "method": "independent_readback",
+      "evidence": "synthetic-effect-recorder-v1"
+    }
+  }
+]

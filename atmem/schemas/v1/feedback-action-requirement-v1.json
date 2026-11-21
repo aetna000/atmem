@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "atmem-feedback-action-requirement-v1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "atmem-feedback-action-requirement-v1"
+    },
+    "action_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "maxLength": 256
+    },
+    "tool": {
+      "type": "string",
+      "maxLength": 65536
+    },
+    "schema_version": {
+      "type": "string",
+      "maxLength": 65536
+    },
+    "kind": {
+      "enum": [
+        "read",
+        "write"
+      ]
+    },
+    "checks": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "string",
+        "maxLength": 65536
+      }
+    }
+  },
+  "required": [
+    "format",
+    "action_id",
+    "tool",
+    "schema_version",
+    "kind",
+    "checks"
+  ],
+  "additionalProperties": false
+}

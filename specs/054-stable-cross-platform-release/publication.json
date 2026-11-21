@@ -1,0 +1,105 @@
+{
+  "format": "atmem-stable-release-verification-v1",
+  "verified_date": "2026-11-18",
+  "version": "2.3.15",
+  "source_branch": "fix/matched-atmem-comparison",
+  "public_pr": 39,
+  "release_commit": "bca4e925fc89a3c01b6c95fba4460f59749ce8f5",
+  "annotated_tag": "v2.3.15",
+  "github_release": "https://github.com/aetna000/atmem/releases/tag/v2.3.15",
+  "prerelease": false,
+  "publisher": {
+    "run_id": 44292000170,
+    "url": "https://github.com/aetna000/atmem/actions/runs/44292000170",
+    "conclusion": "success",
+    "persisted_upgrade_versions": 19
+  },
+  "premerge_checks": {
+    "successful": 80,
+    "superseded_duplicate_push_cancellations": 30,
+    "ci_run": 44285813151,
+    "runner_capacity_retry": "Only unacquired macOS3.13 job retried; no test ran in its failed scheduling attempt; final pass"
+  },
+  "compatibility": {
+    "atmem": "2.3.15",
+    "openclaw_bridge": "2.3.15",
+    "atmem_atbot": "0.1.1",
+    "atflows": "0.1.8"
+  },
+  "pypi": {
+    "version": "2.3.15",
+    "registry": "PyPI",
+    "files": [
+      {
+        "filename": "atmem-2.3.15-py3-none-any.whl",
+        "sha256": "c0f34a38046fca0c01295500c6f5c50a1c87778ca223f7a1889618fe7b812d83",
+        "packagetype": "bdist_wheel"
+      },
+      {
+        "filename": "atmem-2.3.15.tar.gz",
+        "sha256": "a387e8eeb93466b1a1fb74c1d622b47d4117de160462ebf6546dbba44521454c",
+        "packagetype": "sdist"
+      }
+    ],
+    "runtime_matches_three_platform_tested_candidate": true,
+    "candidate_sha256": "bc59f9e5b2c0305a95c7f6534ae88963c9a4e9a7f0f18453534f642fa0cd3a5c"
+  },
+  "npm": {
+    "package": "openclaw-memory-atmem",
+    "version": "2.3.15",
+    "latest": "2.3.15",
+    "integrity": "sha512-gXEIv0lYjWPFEF8sY2grn6MUgXEwtVQG8cxyrQGCI3NKDpTXN8GayXt3WTSOWREJNlZB0tFtECSEot+Ho6XHLA==",
+    "registry_tarball_verified": true,
+    "tarball_version_verified": true,
+    "initial_full_registry_metadata_was_stale": "npm prefer-online and no-cache verification confirmed current latest"
+  },
+  "installed_users": {
+    "candidate": "All six groups passed on native Windows11, native macOS ARM64 and unprivileged Debian12 ARM64 container; receipts retained in this directory",
+    "published_registry": {
+      "macos": "six groups passed; macos-pypi-user.json",
+      "linux": "six groups passed; linux-pypi-user.json",
+      "owner_windows": "not_started: SSH host became unreachable after successful prepublication journey; no registry recheck pass claimed"
+    },
+    "publisher_windows": "exact published-artifact installation/managed bootstrap passed in publisher"
+  },
+  "website": {
+    "source_pin": "bca4e925fc89a3c01b6c95fba4460f59749ce8f5",
+    "status": "published and live verified",
+    "atmem_pages": 72,
+    "architect_guides": 6,
+    "build_pages": 109,
+    "docs_tests_passed": 70,
+    "browser_tests_passed": 84,
+    "astro": "7.4.12",
+    "latest_picomatch_observed": "4.0.7",
+    "owner_merge": true,
+    "live_deployment": true,
+    "private_main_commit": "86a8ff50c0283a2c5c98fc7fea289bc42f030b9f",
+    "main_validation_run": 44305719623,
+    "main_validation_conclusion": "success",
+    "artifact_sha256": "552721f05a3ce39003a459113b4ebe7310a14632ffbb9ac0749ab3f91c30d814",
+    "artifact_checksum_verified": true,
+    "hosting_only": true,
+    "firebase_hosting_version": "28a21b10ca78ece9",
+    "live_verified_at_utc": "2026-11-18T12:47:41.156295+00:00",
+    "live_urls_checked": 18,
+    "live_artifact_byte_match": true,
+    "live_browser_search_navigation_passed": true,
+    "domains": [
+      "https://atmem.ai",
+      "https://atmemai.web.app"
+    ],
+    "audit_status": "passed after verified local source remediation; upstream advisory monitoring enforced",
+    "initial_audit_advisory": "https://github.com/advisories/GHSA-fc5q-39xc-vjpf",
+    "official_upstream_patch_available_at_initial_review": false
+  },
+  "resources": {
+    "additional_paid_model_calls_during_release": 0,
+    "task_linux_container_removed": true,
+    "task_mac_fixtures_and_venvs_removed": true,
+    "private_logs_and_sanitized_receipts_retained": true,
+    "windows_temporary_directory_cleanup": "pending: supplied host unreachable; own services had already stopped after successful journey",
+    "scientific_study_homes": "preserved"
+  },
+  "claims": "Operational release qualification only; no demonstrated learning or accuracy gain; broader Spec050 tasks remain unfinished"
+}

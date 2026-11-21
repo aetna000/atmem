@@ -185,13 +185,17 @@ def stop(instance: str) -> dict[str, Any]:
     if pid is None:
         return status(instance)
     command = _pid_command(pid)
-    if "atmem.provider_adapters.worker" not in command or instance not in command:
+    if not _owned_worker_command(command, instance):
         raise ValueError("recorded PID does not belong to this provider instance")
     os.kill(pid, signal.SIGTERM)
     for _ in range(20):
         if not _pid_exists(pid):
             break
         time.sleep(0.05)
+    if _pid_exists(pid):
+        # A signal is not evidence of exit. Preserve ownership/recovery state
+        # until a later inspection confirms the process actually stopped.
+        return {**status(instance), "stop_pending":True, "reason":"process_exit_not_confirmed"}
     (root / "service.pid").unlink(missing_ok=True)
     return status(instance)
 
@@ -296,11 +300,7 @@ def _pid_exists(pid: int) -> bool:
 
 def _pid_command(pid: int) -> str:
     if os.name=='nt':
-        if type(pid) is not int or not 1<pid<=0xFFFFFFFF:return ''
-        return subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-Command',
-            "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); "
-            f"(Get-CimInstance Win32_Process -Filter 'ProcessId = {pid}').CommandLine"],
-            capture_output=True,text=True,encoding='utf-8',check=False,timeout=5).stdout
+        return _windows_pid_command(pid)
     proc_path = Path(f"/proc/{pid}/cmdline")
     try:
         if proc_path.is_file():
@@ -311,6 +311,35 @@ def _pid_command(pid: int) -> str:
         ["ps", "-p", str(pid), "-o", "command="],
         capture_output=True, text=True, check=False,
     ).stdout
+
+
+def _windows_pid_command(pid: int) -> str:
+    """Bounded read-only retry; never signal a process with unknown ownership."""
+    if type(pid) is not int or not 1<pid<=0xFFFFFFFF:
+        return ''
+    command = ['powershell.exe','-NoProfile','-NonInteractive','-Command',
+        "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); "
+        f"(Get-CimInstance Win32_Process -Filter 'ProcessId = {pid}').CommandLine"]
+    for timeout in (5, 10):
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, encoding='utf-8', check=False, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            continue
+        except OSError:
+            break
+        if result.returncode == 0:
+            return result.stdout
+        break
+    raise ValueError("provider process identity unavailable; process left running and ownership retained")
+
+
+def _owned_worker_command(command: str, instance: str) -> bool:
+    try:
+        arguments = shlex.split(command, posix=os.name != "nt")
+    except (TypeError, ValueError):
+        return False
+    expected = ["-m", "atmem.provider_adapters.worker", instance]
+    return any(arguments[i:i+3] == expected for i in range(len(arguments)-2))
 
 
 def _health(config: dict[str, Any]) -> dict[str, Any] | None:

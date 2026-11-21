@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "atmem-feedback-rule-predicate-v1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "atmem-feedback-rule-predicate-v1"
+    },
+    "operator": {
+      "enum": [
+        "present",
+        "equals",
+        "approval_required"
+      ]
+    },
+    "path": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "string",
+        "maxLength": 65536
+      }
+    },
+    "value": {}
+  },
+  "required": [
+    "format",
+    "operator",
+    "path"
+  ],
+  "additionalProperties": false
+}

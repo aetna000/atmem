@@ -30,6 +30,7 @@ class ControlDashboardServer(ThreadingHTTPServer):
         initial_state_assessor=None,
         allow_remote_initial_assessment=False,
         initial_state_presentation='annotated-source',
+        feedback_dashboard=None,
     ) -> None:
         host, _ = address
         if host not in {"127.0.0.1", "::1", "localhost"}:
@@ -48,6 +49,7 @@ class ControlDashboardServer(ThreadingHTTPServer):
         self.html = html
         self.csrf_token = secrets.token_urlsafe(32)
         self.hermes_requests = BoundedSemaphore(4)
+        self.feedback_dashboard = feedback_dashboard
 
 
 class ControlDashboardHandler(BaseHTTPRequestHandler):
@@ -81,11 +83,43 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if path in _FONT_ASSETS:
+            body = files("atmem.control").joinpath("assets/fonts/" + _FONT_ASSETS[path]).read_bytes()
+            self.send_response(HTTPStatus.OK)
+            self._security_headers()
+            self.send_header("Content-Type", "font/woff2")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "public, max-age=86400")
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if path == "/api/session":
             self._json(HTTPStatus.OK, {"csrf_token": self.server.csrf_token})
             return
         if path == "/api/auth/status":
             self._json(HTTPStatus.OK, self.server.application.local_auth_status(self._session_token()))
+            return
+        if path in ("/api/feedback/status", "/api/feedback/quality"):
+            from atmem.feedback.store import FeedbackError
+            try:
+                identity = self._require_identity_session()
+                dashboard = self.server.feedback_dashboard
+                if dashboard is None:
+                    self._json(HTTPStatus.OK, {"available": False, "reason": "Feedback requires an explicit scoped application binding."})
+                elif path.endswith("/status"):
+                    self._json(HTTPStatus.OK, dashboard.status(identity))
+                else:
+                    params = parse_qs(parsed.query)
+                    if set(params) != {"schedule_id"} or len(params["schedule_id"]) != 1:
+                        raise ValueError("one schedule_id required")
+                    self._json(HTTPStatus.OK, dashboard.quality(identity, schedule_id=params["schedule_id"][0]))
+            except FeedbackError as exc:
+                self._json(HTTPStatus.FORBIDDEN if exc.code == "denied" else HTTPStatus.CONFLICT,
+                           {"error": "Feedback request rejected: "+exc.code, "reason": exc.code})
+            except PermissionError:
+                self._json(HTTPStatus.FORBIDDEN, {"error": "Feedback access denied"})
+            except (KeyError, ValueError, OSError, RuntimeError):
+                self._json(HTTPStatus.CONFLICT, {"error": "Feedback unavailable for this account and scope"})
             return
         if path == "/api/code":
             try:
@@ -639,6 +673,17 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         try:
             body = self._body(maximum=180_000_000 if path == "/api/code" else 1_000_000)
             path = _canonical_api_path(urlparse(self.path).path)
+            if path == "/api/feedback/action":
+                identity = self._require_identity_session()
+                if self.server.feedback_dashboard is None:
+                    raise PermissionError("Feedback is not configured")
+                from atmem.feedback.store import FeedbackError
+                try:
+                    self._json(HTTPStatus.OK, self.server.feedback_dashboard.action(identity, body))
+                except FeedbackError as exc:
+                    self._json(HTTPStatus.FORBIDDEN if exc.code == "denied" else HTTPStatus.CONFLICT,
+                               {"error": "Feedback request rejected: "+exc.code, "reason": exc.code})
+                return
             if path == "/api/code":
                 from atmem.code.dashboard import execute
                 self._json(HTTPStatus.OK, execute(self.server.manager, self._require_identity_session(), body))
@@ -1540,6 +1585,13 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         )
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
+
+
+# Self-hosted Architecture Canvas fonts (SIL OFL, see assets/fonts/*-OFL.txt); exact names only.
+_FONT_ASSETS = {
+    "/assets/fonts/dm-sans-latin-wght-normal.woff2": "dm-sans-latin-wght-normal.woff2",
+    "/assets/fonts/manrope-latin-wght-normal.woff2": "manrope-latin-wght-normal.woff2",
+}
 
 
 def _canonical_api_path(path: str) -> str:

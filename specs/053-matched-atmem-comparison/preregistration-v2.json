@@ -1,0 +1,168 @@
+{
+  "format": "atmem-matched-comparison-v1",
+  "protocol_revision": 2,
+  "source_sha": "3303183a362132b45280732706181802550c73c9",
+  "runner_sha256": "59b4b366db60ba9fbbaa61694bcc8b48f120f63129670f61208067e9251af728",
+  "worker_sha256": "acf18e375d4ad0fb13ea9273878f2f6e47e8c95e1d2bbf6566b880a33efb1ea8",
+  "agent_and_grader_sha256": "429a82814c121e16d40929401ae1abeafa0ee4387be271bf9bca3abd033706eb",
+  "corpus": {
+    "products.db": "edf8ee80ff125de0bfd6c37a1d185efa9e3037ce28eb1bd1d32ae0829bd264a6",
+    "products_drifted.db": "a53d523f70604be0e4328f3722417895250ac35e1127cc504b609576aee70fad",
+    "questions.json": "f98e515c14b74f4d30c29401fb79cca9ceeb15fe9ee2432b10265a4a649d1771",
+    "questions_post_drift.json": "c05aa6a33def3878e6b655a1cba6454e55e1a9c16ded8c1fe53b7811986a45de"
+  },
+  "settings": {
+    "model": "openai/gpt-6-luna",
+    "seed": 52,
+    "reasoning": {
+      "effort": "low"
+    },
+    "response_format": {
+      "type": "json_object"
+    },
+    "provider": {
+      "only": [
+        "OpenAI"
+      ],
+      "allow_fallbacks": false,
+      "require_parameters": true,
+      "max_price": {
+        "prompt": 0.1,
+        "completion": 0.5
+      }
+    }
+  },
+  "system_sha256": "21e295f90e3b3f3df40c8b9b771f076937e99a92ef8b99606a5ab1078c991001",
+  "task_framing": "The database contains three separate product datasets covering office products, electronics, and musical instruments. Each dataset has its own set of tables. Explore the schema to determine which tables belong to each product category.",
+  "agent_query_seconds": 10,
+  "history_sha256": "24b0886bd5246d862713eff88b026fa8ea6c27be2e293f968ffaf5035a3dc723",
+  "revised_policy_sha256": "5f2283d32acc74c68e0862e301b7a50a423189810ec803c8a841dd25e0ff6db5",
+  "revised_notes_sha256": "143d7bc7da39c21c7a2b6a8027dd031b62aa1f35849739219a2f4886554e5391",
+  "installed_packages": {
+    "original": {
+      "identity": {
+        "version": "2.3.14",
+        "module": "/Volumes/MEM0-APFS/atmem-pg/measured-memory-original/lib/python3.12/site-packages/atmem/memory.py",
+        "package_python_sha256": "d4bef8d0aa145da15a1253b53e67809351757facf2b83b153a140ad388c24d57",
+        "memory_module_sha256": "95387811eaa6141bccf1e881d16b485dd19a47f775cb7d54fad070495517b2fe"
+      },
+      "generation": {
+        "generation_id": "gen3_40b0c41c8a92484483ec48fb45ce0e21",
+        "subject_id": "comparison-owner",
+        "agent_id": "comparison-agent",
+        "workspace_id": "comparison-workspace",
+        "profile_id": "context-fast",
+        "state": "active",
+        "canonical_generation": 0,
+        "configuration_sha256": "sha256:de995c09896abe2eb9f0a5ebbc471a33325f21a716c377c7e3a630fb30811f0b",
+        "verification_json": "{\"orphan_units\":0,\"verified\":true}",
+        "created_at": "2026-11-17T21:18:16.378919+00:00",
+        "verified_at": "2026-11-17T21:18:16.443949+00:00",
+        "activated_at": "2026-11-17T21:18:16.444042+00:00",
+        "retired_at": null,
+        "revision": 66
+      }
+    },
+    "pilot": {
+      "identity": {
+        "version": "2.3.15b2",
+        "module": "/Volumes/MEM0-APFS/atmem-pg/measured-memory-installed/lib/python3.12/site-packages/atmem/memory.py",
+        "package_python_sha256": "0f6f3b4ae2ef90e0ac9732b8ee6b650128cbfe3b5b5cad3f204581de516a5e6d",
+        "memory_module_sha256": "95387811eaa6141bccf1e881d16b485dd19a47f775cb7d54fad070495517b2fe"
+      },
+      "generation": {
+        "generation_id": "gen3_b70366006e5c460f85ef691a28a19c43",
+        "subject_id": "comparison-owner",
+        "agent_id": "comparison-agent",
+        "workspace_id": "comparison-workspace",
+        "profile_id": "context-fast",
+        "state": "active",
+        "canonical_generation": 0,
+        "configuration_sha256": "sha256:de995c09896abe2eb9f0a5ebbc471a33325f21a716c377c7e3a630fb30811f0b",
+        "verification_json": "{\"orphan_units\":0,\"verified\":true}",
+        "created_at": "2026-11-17T21:18:16.847972+00:00",
+        "verified_at": "2026-11-17T21:18:17.126794+00:00",
+        "activated_at": "2026-11-17T21:18:17.126884+00:00",
+        "retired_at": null,
+        "revision": 67
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "109",
+      "input_sha256": "9ed73a1d4847003e03a8e748972799166d2b720e9dc2b827fa835df0d9d33e78",
+      "target_sha256": "cf4ea230810c7533370ea7b2f0096bb82e2ea8a27381f388f142ba86a2d45d84"
+    },
+    {
+      "id": "110",
+      "input_sha256": "48f8fb1bbf5cbcca7fe22cfe72e2339e924c5fc418e6543f1a5877bd66a1a440",
+      "target_sha256": "e119348270ac0e8bb0c108c4da4c01b8c84c9a4a1dfc770a00653f8bc62041be"
+    },
+    {
+      "id": "111",
+      "input_sha256": "8c36cf1ed4a51c2e4baaa2c55494abc5d9c6d55b3a6108fa12ec283948a834b1",
+      "target_sha256": "3c52999ddb67133adb1c64cb9a585db0aab05111272c6d4b9abed7ebcc3600f1"
+    },
+    {
+      "id": "112",
+      "input_sha256": "de167f5819292a39ce8d8351f03f9481cf783e2a1927d955299ed50945d0a15c",
+      "target_sha256": "3245196dc202407ff29d477430fe842eb5a577257e7f195ad5d1c7d5cfd8a859"
+    },
+    {
+      "id": "113",
+      "input_sha256": "5dd0361d0fae369b8ec874ac2e1e6a34d426131e1bbbad3732f518a604d367a8",
+      "target_sha256": "187b21e4ced2549b6788b5bc9615381edb3d35513776f6c759f49bb74f857ae9"
+    },
+    {
+      "id": "114",
+      "input_sha256": "42fee24ba38f26514b947d78c238129b3ae0468d1deb3f2b9f72e06febd97e18",
+      "target_sha256": "d7167a2d6f68c383a779deb2a4dd399d95d19270de6e28eb88f1e2030fae031f"
+    },
+    {
+      "id": "115",
+      "input_sha256": "b68997401ba36fee90204fa7332e86f0837ccfa6bbe644bac1b4398987b31d87",
+      "target_sha256": "76bc25d50a8f669717c559b5ec6acda677d48829bfecc37f402be97e645949f5"
+    },
+    {
+      "id": "116",
+      "input_sha256": "39ecb7c37a654b008fcd3f28cdc71a6b6c8e97b43e246716cc6ebe2f02c53962",
+      "target_sha256": "b6dbe258be0788506c52512f08fe5e1d9f5dfa18456b239d24a781a69d50e77d"
+    },
+    {
+      "id": "117",
+      "input_sha256": "ebbd752774de740870774dfda1ef848ab00e9a4b6c2639d2a072ad1a93637e27",
+      "target_sha256": "061c21423c4999c498bcafc756f1f31f7ebd50966e2f7fa02b37c173a285f50f"
+    },
+    {
+      "id": "118",
+      "input_sha256": "d80d3b8619d0aac2a04d6555a899ef6a4e9ad9c9598f6f6da2c317fd719839c6",
+      "target_sha256": "5793e60296577e25d7b980b2826896863f93e63e0629a3b161fa9c6e76131221"
+    },
+    {
+      "id": "119",
+      "input_sha256": "55a07c724312f9d710a1c4b7e70ca2f4eabff936e585b40dab3eaa46fc4edd90",
+      "target_sha256": "fd539fcb293d8dafeda48e0465ebe022f287c37eec82476e7a9f81dc83c0b318"
+    },
+    {
+      "id": "120",
+      "input_sha256": "9cbf144b7d509088f3a5129363e37baa90da99b91b2b7b205e7ff2b46040e0f9",
+      "target_sha256": "e7399e4f48458b58263c72436068c75ae12267b1dce3d5286fdf8c0af23a13eb"
+    }
+  ],
+  "arms": [
+    "none",
+    "original",
+    "pilot"
+  ],
+  "limits": {
+    "calls": 363,
+    "tokens": 916357,
+    "usd": 1.49368864,
+    "seconds": 2400,
+    "bytes": 23153146
+  },
+  "oracle_preflight_seconds_per_query": 60,
+  "early_stop": "all nine first-three-case outcomes incorrect",
+  "scope": "single-lineage schema-drift diagnostic; forced rejected policy, no online learning"
+}
