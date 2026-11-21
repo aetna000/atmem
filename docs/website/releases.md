@@ -1,6 +1,6 @@
 # Releases
 
-[AtMem 2.3.16b1 beta](../releases/v2.3.16b1.md) fixes a V3 context-packing error under tight byte budgets.
+[AtMem 2.3.16b2 beta](../releases/v2.3.16b2.md) fixes a V3 context-packing error under tight byte budgets.
 
 ## Current stable: 2.3.15
 
