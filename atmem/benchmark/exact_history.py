@@ -6,10 +6,13 @@ import argparse
 from dataclasses import asdict, dataclass
 from hashlib import sha256
 import json
+import os
 import platform
 import random
 from pathlib import Path
 from statistics import median
+import subprocess
+import sys
 from tempfile import TemporaryDirectory
 from time import perf_counter_ns
 
@@ -163,7 +166,7 @@ def summarize(rows: list[dict]) -> dict:
     }
 
 
-def run_benchmark(split: str, *, output_bytes: int = OUTPUT_BYTES) -> dict:
+def _run_benchmark(split: str, *, output_bytes: int) -> dict:
     history, cases = make_fixture(split)
     arms = {"atmem_v3": [], "summary_plus_literal": []}
     budget = RetrievalBudget(context_bytes=output_bytes, optional_model_calls=0)
@@ -213,13 +216,32 @@ def run_benchmark(split: str, *, output_bytes: int = OUTPUT_BYTES) -> dict:
     }
 
 
+def run_benchmark(split: str, *, output_bytes: int = OUTPUT_BYTES) -> dict:
+    # Key locations are resolved at import time. Start the evaluator with its
+    # own home before importing AtMem, separate from any operator key or DB.
+    with TemporaryDirectory(prefix="atmem-exact-history-home-") as home:
+        environment = {key: value for key, value in os.environ.items()
+                       if key not in {"ATMEM_HOME", "ATMEM_DB_KEY", "ATMEM_DB"}}
+        environment.update(ATMEM_HOME=home, PYTHONPATH=str(Path(__file__).resolve().parents[2]))
+        result = subprocess.run(
+            [sys.executable, "-m", "atmem.benchmark.exact_history",
+             "--split", split, "--output-bytes", str(output_bytes), "--worker"],
+            cwd=home, env=environment, capture_output=True, text=True,
+        )
+        if result.returncode:
+            raise RuntimeError(f"Exact-history evaluator failed:\n{result.stderr.strip()}")
+        return json.loads(result.stdout)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--split", choices=tuple(SPLIT_SEEDS), default="development")
     parser.add_argument("--output-bytes", type=int, choices=(512, OUTPUT_BYTES), default=OUTPUT_BYTES)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
-    result = json.dumps(run_benchmark(args.split, output_bytes=args.output_bytes), indent=2, sort_keys=True) + "\n"
+    benchmark = _run_benchmark if args.worker else run_benchmark
+    result = json.dumps(benchmark(args.split, output_bytes=args.output_bytes), indent=2, sort_keys=True) + "\n"
     if args.output:
         with args.output.open("x", encoding="utf-8") as output:
             output.write(result)

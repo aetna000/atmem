@@ -52,9 +52,13 @@ def test_grader_separates_evidence_hits_from_stale_and_forbidden_delivery():
     assert not missed["passed"] and missed["source_available"] and missed["forbidden_delivered"]
 
 
-def test_native_context_returns_safe_empty_result_under_tight_budget():
+def test_native_context_returns_safe_empty_result_under_tight_budget(monkeypatch, tmp_path):
     pytest.importorskip("sqlcipher3")
+    parent_home = tmp_path / "unused-home"
+    monkeypatch.setenv("ATMEM_HOME", str(parent_home))
+    monkeypatch.setenv("ATMEM_DB_KEY", "intentionally-invalid-for-isolation-test")
     report = run_benchmark("development", output_bytes=512)
+    assert not parent_home.exists()
     assert report["model_calls"] == 0
     native = report["arms"]["atmem_v3"]
     assert native["summary"]["errors"] == native["summary"]["forbidden_deliveries"] == 0
