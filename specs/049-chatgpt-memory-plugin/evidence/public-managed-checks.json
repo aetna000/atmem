@@ -1,0 +1,30 @@
+{
+  "surface": "independent MCP client and real managed HTTPS, not ChatGPT invocation",
+  "synthetic_only": true,
+  "checks": [
+    "live public-client discovery",
+    "isolated synthetic Firebase identity created; admin verification is not mailbox evidence",
+    "official CIMD authorization, issuer and PKCE exchange",
+    "real governed memory created before deletion",
+    "managed encrypted recovery and native audit roundtrip",
+    "fresh-confirmed whole-account purge and Firebase deletion receipt",
+    "all-account fence denies prior access token",
+    "no household chunks remain and deleted account cannot be restored",
+    "Firebase account absence independently verified",
+    "browser receipt recovery"
+  ],
+  "receipt": {
+    "format": "atmem-cloud-account-deletion-v1",
+    "deletion_id": "wAWWd30W1MwbR7hlKvmGbtPFjl_BDN0Pi7uqSMwg_8k",
+    "access_revoked": true,
+    "household_purged": true,
+    "firebase_account_deleted": true,
+    "backup_deletion_verified": false,
+    "chatgpt_copies_deleted": false,
+    "legacy_auth_controls_max_retention_seconds": 86400,
+    "noncontent_deletion_fence_retained": true,
+    "started_at": 1793936187.944086,
+    "completed_at": 1793936188.745344
+  },
+  "passed": true
+}

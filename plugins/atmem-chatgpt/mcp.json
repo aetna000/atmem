@@ -1,0 +1,29 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "atmem": {
+      "type": "streamable-http",
+      "url": "http://127.0.0.1:8769/mcp",
+      "extensions": {
+        "com.openai": {
+          "auth": {
+            "type": "oauth",
+            "client": {
+              "mode": "provided",
+              "clientId": "atmem-test-client",
+              "tokenEndpointAuthMethod": "none"
+            },
+            "baseScopes": [
+              "memory:read"
+            ],
+            "defaultScopes": [
+              "memory:read",
+              "memory:write",
+              "memory:delete"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

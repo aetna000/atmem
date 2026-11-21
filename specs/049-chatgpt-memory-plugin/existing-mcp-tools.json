@@ -1,0 +1,842 @@
+[
+  {
+    "name": "memory_remember",
+    "description": "Store a message in auditable memory. Trusted user statements become active records; content from webpages/tool output is quarantined until explicitly promoted. Updates supersede older facts with the same slot instead of duplicating.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "message": {
+          "type": "string",
+          "description": "The exact authenticated user message."
+        },
+        "source_aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Typed host session aliases for a staged current user message."
+        },
+        "interpreted_fact": {
+          "type": "string",
+          "description": "Optional concise fact semantically interpreted by the host agent."
+        },
+        "interpreted_fact_key": {
+          "type": "string",
+          "description": "Optional stable semantic slot used to supersede an older value."
+        },
+        "interpreter": {
+          "type": "string",
+          "description": "Host model identity that produced interpreted_fact."
+        },
+        "source_type": {
+          "type": "string",
+          "enum": [
+            "user_message",
+            "webpage",
+            "tool_output"
+          ],
+          "description": "Override source classification."
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Conversation/session id."
+        },
+        "turn_id": {
+          "type": "string",
+          "description": "Turn id within the session."
+        }
+      }
+    }
+  },
+  {
+    "name": "memory_observe",
+    "description": "Store exactly one quarantined text observation derived from a host-controlled image, audio, video, or document. AtMem stores no media bytes: the caller supplies an exact-byte SHA-256 digest, secretless host reference, segment, and extractor identity. Generic MCP evidence is always marked caller_asserted; confidence is evidence, never promotion authority.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "text": {
+          "type": "string",
+          "description": "Extractor-produced text observation."
+        },
+        "modality": {
+          "type": "string",
+          "enum": [
+            "image",
+            "audio",
+            "video",
+            "document"
+          ]
+        },
+        "media_sha256": {
+          "type": "string",
+          "pattern": "^(sha256:)?[0-9a-fA-F]{64}$",
+          "description": "SHA-256 of the exact media byte stream."
+        },
+        "host_reference": {
+          "type": "string",
+          "description": "Secretless host-controlled reference; no query string or credentials."
+        },
+        "segment": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "page": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "timestamp_start": {
+              "type": "number",
+              "minimum": 0
+            },
+            "timestamp_end": {
+              "type": "number",
+              "minimum": 0
+            },
+            "region": {
+              "type": "string",
+              "description": "Page region label or serialized coordinates."
+            }
+          }
+        },
+        "extractor": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "provider": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "model_digest": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "provider",
+            "model",
+            "version"
+          ]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Extractor-local evidence only; never a trust threshold."
+        },
+        "observed_at": {
+          "type": "string",
+          "description": "ISO-8601 time at which the extractor observed the artifact."
+        },
+        "artifact_id": {
+          "type": "string",
+          "description": "Optional existing artifact id; its digest must match."
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Conversation/session id."
+        },
+        "turn_id": {
+          "type": "string",
+          "description": "Turn id within the session."
+        }
+      },
+      "required": [
+        "text",
+        "modality",
+        "media_sha256",
+        "host_reference",
+        "extractor"
+      ]
+    }
+  },
+  {
+    "name": "memory_recall",
+    "description": "Legacy diagnostic search for active memories. This does not authorize prompt injection; use memory_recall_decision for that. Ranks by (text relevance + trust + recency). Every recall is logged with a bounded score sample for auditability.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "query": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "default": 10
+        },
+        "min_score": {
+          "type": "number",
+          "description": "Drop matches scoring below this."
+        },
+        "use_graph": {
+          "type": "boolean",
+          "description": "Blend bounded graph seed-and-spread recall."
+        },
+        "include_scores": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include each returned record's audited ranking score."
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Conversation/session id."
+        },
+        "turn_id": {
+          "type": "string",
+          "description": "Turn id within the session."
+        }
+      },
+      "required": [
+        "query"
+      ]
+    }
+  },
+  {
+    "name": "memory_recall_decision",
+    "description": "Retrieve governed memory context using AtMem's shared calibrated direct/background/no-useful-memory decision and final eligibility reload.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "agent_id": {
+          "type": "string",
+          "default": "mcp"
+        },
+        "workspace_id": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "default": 10
+        },
+        "candidate_limit": {
+          "type": "integer",
+          "default": 100
+        },
+        "min_score": {
+          "type": "number",
+          "default": 0.0
+        },
+        "budget_chars": {
+          "type": "integer",
+          "default": 1800
+        },
+        "context_version": {
+          "type": "string",
+          "enum": [
+            "v1",
+            "v2"
+          ],
+          "default": "v1",
+          "description": "Use v2 for typed evidence sufficiency and action constraints."
+        },
+        "budget_bytes": {
+          "type": "integer",
+          "default": 8192
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Conversation/session id."
+        },
+        "turn_id": {
+          "type": "string",
+          "description": "Turn id within the session."
+        }
+      },
+      "required": [
+        "query"
+      ]
+    }
+  },
+  {
+    "name": "memory_form_episode",
+    "description": "Form source-linked typed memory proposals from exact episode parts. AtMem verifies every digest and applies governance; the tool does not bypass review, storage protection, scope, or activation.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "agent_id": {
+          "type": "string",
+          "default": "mcp"
+        },
+        "workspace_id": {
+          "type": "string"
+        },
+        "episode_id": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "parts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "part_id": {
+                "type": "string"
+              },
+              "ordinal": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "state",
+                  "action",
+                  "tool",
+                  "media_reference"
+                ]
+              },
+              "source_type": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string"
+              },
+              "reference_id": {
+                "type": "string"
+              },
+              "content_sha256": {
+                "type": "string"
+              },
+              "reference_sha256": {
+                "type": "string"
+              },
+              "start_offset": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "end_offset": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "observed_at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "part_id",
+              "ordinal",
+              "kind",
+              "source_type"
+            ]
+          }
+        },
+        "host_message_id": {
+          "type": "string"
+        },
+        "retain_body": {
+          "type": "boolean",
+          "default": true
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Conversation/session id."
+        },
+        "turn_id": {
+          "type": "string",
+          "description": "Turn id within the session."
+        }
+      },
+      "required": [
+        "episode_id",
+        "idempotency_key",
+        "parts"
+      ]
+    }
+  },
+  {
+    "name": "memory_get_record",
+    "description": "Read one active memory by its exact record id and return its stored source provenance. The read is written to the audit chain.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "record_id": {
+          "type": "string"
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Conversation/session id."
+        },
+        "turn_id": {
+          "type": "string",
+          "description": "Turn id within the session."
+        }
+      },
+      "required": [
+        "record_id"
+      ]
+    }
+  },
+  {
+    "name": "memory_get_source",
+    "description": "Read an exact, digest-verified frozen OpenClaw source file (MEMORY.md or memory/*.md) admitted during takeover. The read is written to the audit chain.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "path": {
+          "type": "string"
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Conversation/session id."
+        },
+        "turn_id": {
+          "type": "string",
+          "description": "Turn id within the session."
+        }
+      },
+      "required": [
+        "path"
+      ]
+    }
+  },
+  {
+    "name": "memory_recall_block",
+    "description": "Build a bounded <relevant_memories> block for prompt injection: top matches only (lexical match required), hard record/char budgets, and an audit event naming exactly which record IDs entered the context.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "query": {
+          "type": "string"
+        },
+        "require_direct_support": {
+          "type": "boolean",
+          "default": false,
+          "description": "Require calibrated direct original-query support for automatic injection."
+        },
+        "exclude_record_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Records already present in another context component."
+        },
+        "max_records": {
+          "type": "integer",
+          "default": 5
+        },
+        "max_chars": {
+          "type": "integer",
+          "default": 2000
+        },
+        "min_score": {
+          "type": "number",
+          "default": 0.3
+        },
+        "use_graph": {
+          "type": "boolean"
+        },
+        "reference_mode": {
+          "type": "string",
+          "enum": [
+            "full",
+            "compact",
+            "none"
+          ],
+          "default": "full",
+          "description": "Model-visible provenance reference format; audit events always retain full IDs."
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Conversation/session id."
+        },
+        "turn_id": {
+          "type": "string",
+          "description": "Turn id within the session."
+        }
+      },
+      "required": [
+        "query"
+      ]
+    }
+  },
+  {
+    "name": "memory_persona",
+    "description": "Deterministic persona snapshot (<user_persona> block) derived live from active records: stable fact slots first, then recent facts, under a character budget. Every line carries the source record id; building it is audited.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "max_chars": {
+          "type": "integer",
+          "default": 1500
+        },
+        "reference_mode": {
+          "type": "string",
+          "enum": [
+            "full",
+            "compact",
+            "none"
+          ],
+          "default": "full",
+          "description": "Model-visible provenance reference format; audit events always retain full IDs."
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Conversation/session id."
+        },
+        "turn_id": {
+          "type": "string",
+          "description": "Turn id within the session."
+        }
+      }
+    }
+  },
+  {
+    "name": "memory_context_pack",
+    "description": "Build a provider-neutral cache-aware context pack. Keep stable_context in a stable system-prefix position and put dynamic_context near the current turn. Both blocks are bounded and their full record provenance is audited.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "query": {
+          "type": "string"
+        },
+        "persona_max_chars": {
+          "type": "integer",
+          "default": 600
+        },
+        "recall_max_records": {
+          "type": "integer",
+          "default": 3
+        },
+        "recall_max_chars": {
+          "type": "integer",
+          "default": 1200
+        },
+        "min_score": {
+          "type": "number",
+          "default": 0.3
+        },
+        "use_graph": {
+          "type": "boolean"
+        },
+        "reference_mode": {
+          "type": "string",
+          "enum": [
+            "full",
+            "compact",
+            "none"
+          ],
+          "default": "compact"
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Conversation/session id."
+        },
+        "turn_id": {
+          "type": "string",
+          "description": "Turn id within the session."
+        }
+      },
+      "required": [
+        "query"
+      ]
+    }
+  },
+  {
+    "name": "memory_capture",
+    "description": "Auto-capture a conversation event. role=user runs the full write pipeline; role=assistant/tool_call/tool_result are logged to the audit chain as digests and never become memory records.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "user",
+            "assistant",
+            "tool_call",
+            "tool_result"
+          ]
+        },
+        "content": {
+          "type": "string"
+        },
+        "tool_name": {
+          "type": "string"
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Conversation/session id."
+        },
+        "turn_id": {
+          "type": "string",
+          "description": "Turn id within the session."
+        }
+      },
+      "required": [
+        "role",
+        "content"
+      ]
+    }
+  },
+  {
+    "name": "memory_list",
+    "description": "List a subject's records. include_inactive=true also shows superseded, quarantined, and tombstoned records.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "include_inactive": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    }
+  },
+  {
+    "name": "memory_forget",
+    "description": "Delete matching memories: tombstone + purge content and the source episode. Returns a deletion receipt bound to the audit chain. Provide `contains` (substring) or `utterance` (e.g. \"Forget my backup email.\").",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "contains": {
+          "type": "string"
+        },
+        "utterance": {
+          "type": "string"
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Conversation/session id."
+        },
+        "turn_id": {
+          "type": "string",
+          "description": "Turn id within the session."
+        }
+      }
+    }
+  },
+  {
+    "name": "memory_forget_artifact",
+    "description": "Purge every AtMem memory derived from one exact media byte stream, selected by its indexed SHA-256 digest. Returns a verifiable receipt. This does not delete the host's original file or semantically related re-encodings.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "media_sha256": {
+          "type": "string",
+          "pattern": "^(sha256:)?[0-9a-fA-F]{64}$"
+        },
+        "artifact_id": {
+          "type": "string",
+          "description": "Optional second identifier; must match the digest."
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Conversation/session id."
+        },
+        "turn_id": {
+          "type": "string",
+          "description": "Turn id within the session."
+        }
+      },
+      "required": [
+        "media_sha256"
+      ]
+    }
+  },
+  {
+    "name": "memory_promote",
+    "description": "Activate a quarantined record and audit the trust transition. This tool does not authenticate confirmation; the host must show the record and enforce any required human approval.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "record_id": {
+          "type": "string"
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Conversation/session id."
+        },
+        "turn_id": {
+          "type": "string",
+          "description": "Turn id within the session."
+        }
+      },
+      "required": [
+        "record_id"
+      ]
+    }
+  },
+  {
+    "name": "memory_audit",
+    "description": "Return the hash-chained audit log, retrieval events, and whether the chain verifies.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        }
+      }
+    }
+  },
+  {
+    "name": "memory_verify",
+    "description": "Verify audit-chain integrity, optionally against an anchored checkpoint file.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "checkpoints_path": {
+          "type": "string"
+        },
+        "incremental": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    }
+  },
+  {
+    "name": "memory_graph_status",
+    "description": "Inspect derived graph entities, edges, merge proposals, and archives.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        }
+      }
+    }
+  },
+  {
+    "name": "memory_graph_merges",
+    "description": "List entity merge proposals. Decisions require the reviewer HTTP or CLI surface.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "approved",
+            "rejected",
+            "reverted"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "memory_graph_history",
+    "description": "Read digest-verified inactive graph edges from cold partitions.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "partition_year": {
+          "type": "integer"
+        }
+      }
+    }
+  },
+  {
+    "name": "memory_log_action",
+    "description": "Append an agent action event (tool call, decision, response shown) to the same audit chain as memory events. Put digests in the payload, not raw content.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "description": "User/tenant scope; omit to use the server default."
+        },
+        "action_type": {
+          "type": "string",
+          "description": "e.g. \"tool_call\""
+        },
+        "payload": {
+          "type": "object"
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Conversation/session id."
+        },
+        "turn_id": {
+          "type": "string",
+          "description": "Turn id within the session."
+        }
+      },
+      "required": [
+        "action_type"
+      ]
+    }
+  }
+]

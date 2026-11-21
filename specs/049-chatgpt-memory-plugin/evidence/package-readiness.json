@@ -1,0 +1,22 @@
+{
+  "development_contract_valid": true,
+  "validation_profile": "Strict Agent Plugins 1.0 transport projection plus documented OpenAI extension checks; full portal scan not run",
+  "public_ready": false,
+  "gaps": [
+    "missing verified websiteURL",
+    "missing verified supportURL",
+    "missing verified privacyPolicyURL",
+    "missing verified termsOfServiceURL",
+    "public stable HTTPS endpoint not configured",
+    "actual reviewer-accessible demo recording missing",
+    "intended verified publisher name not supplied"
+  ],
+  "dashboard_checks": [
+    "verified individual publisher/org/project permissions",
+    "owned public endpoint/domain challenge",
+    "secure synthetic reviewer login",
+    "actual account read/write/invocation checks",
+    "required scans and legal attestations",
+    "country targeting and billing/retention decisions"
+  ]
+}

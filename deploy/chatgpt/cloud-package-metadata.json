@@ -1,0 +1,40 @@
+{
+  "interface": {
+    "websiteURL": "https://atmem.ai/cloud/",
+    "supportURL": "https://atmem.ai/cloud/support/",
+    "privacyPolicyURL": "https://atmem.ai/cloud/privacy/",
+    "termsOfServiceURL": "https://atmem.ai/cloud/terms/",
+    "developerName": "AtMem.ai"
+  },
+  "mcp": {
+    "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+    "mcpServers": {
+      "atmem": {
+        "type": "streamable-http",
+        "url": "https://atmem-chatgpt-nvwvv4d7sa-uc.a.run.app/mcp",
+        "extensions": {
+          "com.openai": {
+            "auth": {
+              "type": "oauth",
+              "client": {
+                "mode": "cimd"
+              },
+              "baseScopes": [
+                "memory:read"
+              ],
+              "defaultScopes": [
+                "memory:read",
+                "memory:write",
+                "memory:delete"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "review": {
+    "commerce": false,
+    "commerce_description": "AtMem currently offers no purchases or subscriptions through the plugin."
+  }
+}

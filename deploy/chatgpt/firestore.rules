@@ -1,0 +1,8 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Browser/mobile SDKs never access canonical snapshots or OAuth secrets.
+    // The server SDK bypasses rules: operator IAM is a separate required gate.
+    match /{document=**} { allow read, write: if false; }
+  }
+}

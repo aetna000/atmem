@@ -1,0 +1,28 @@
+{
+  "surface": "managed Cloud Run HTTPS; independent MCP client, not ChatGPT",
+  "issuer": "https://atmem-chatgpt-nvwvv4d7sa-uc.a.run.app",
+  "tests": [
+    "unauthenticated MCP rejected",
+    "Firebase sign-in and real HTTPS OAuth PKCE",
+    "authenticated scopes",
+    "unapproved commit rejected",
+    "other user cannot approve",
+    "real durable save",
+    "idempotent save retry",
+    "detail and provenance",
+    "real recall",
+    "cross-account isolation",
+    "independent persisted engine and audit verification",
+    "real versioned correction",
+    "exact deletion receipt",
+    "deleted record absent from detail and recall",
+    "scoped audit activity",
+    "registered Firebase revalidation on refresh",
+    "grant revocation immediate",
+    "synthetic household cleanup"
+  ],
+  "synthetic_only": true,
+  "workflow_completed": true,
+  "cleanup_passed": true,
+  "passed": true
+}

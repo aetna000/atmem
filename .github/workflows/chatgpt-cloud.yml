@@ -1,0 +1,36 @@
+name: chatgpt-cloud
+on:
+  pull_request:
+    paths: ['atmem/chatgpt/**', 'tests/chatgpt/**', 'tests/fixtures/chatgpt/**', 'plugins/atmem-chatgpt/**', 'scripts/package_chatgpt_plugin.py', 'deploy/chatgpt/**', 'pyproject.toml', '.github/workflows/chatgpt-cloud.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '21'}
+      - run: python -m pip install '.[chatgpt,dev]' pytest-asyncio
+      - run: npm ci --prefix tests/chatgpt/browser
+      - run: npm exec --prefix tests/chatgpt/browser -- playwright install --with-deps chromium
+      - run: npm install --global firebase-tools@15.18.0
+      - name: Real Firebase emulator and authenticated MCP integration
+        run: firebase emulators:exec --only auth,firestore --project demo-atmem-plugin --config deploy/chatgpt/firebase.emulator.json 'python -m pytest tests/chatgpt -q --junitxml=/tmp/chatgpt-tests.xml'
+      - name: Existing native memory/MCP/encryption regression
+        env:
+          ATMEM_HOME: ${{ runner.temp }}/atmem-native-regression
+        run: python -m pytest tests/test_memory.py tests/test_mcp.py tests/test_encryption.py -q
+      - run: python scripts/package_chatgpt_plugin.py --output /tmp/atmem-chatgpt-development.zip
+      - run: python scripts/package_chatgpt_plugin.py --readiness
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chatgpt-test-results
+          path: /tmp/chatgpt-tests.xml

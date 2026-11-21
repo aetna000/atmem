@@ -1,0 +1,8 @@
+{
+  "runtime_identity": "atmem-chatgpt@atmemai.iam.gserviceaccount.com",
+  "missing_test_doc_status": {
+    "atmem-chatgpt": 404,
+    "(default)": 403
+  },
+  "database_isolation_verified": true
+}

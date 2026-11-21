@@ -1,0 +1,8 @@
+{
+  "health_http_status": 200,
+  "cloud": true,
+  "metadata_http_status": 200,
+  "unauthenticated_mcp_status": 401,
+  "image_digest": "sha256:fedf4560c1b661461a4eb3040157db6ac0a3f6f77f28f065c56374a8c42417aa",
+  "no_memory_mutations": true
+}

@@ -2,6 +2,10 @@ name: ci
 
 on:
   push:
+    # Feature branches are checked by pull_request. Running both events under
+    # the same concurrency key leaves cancelled checks on the PR's commit.
+    branches: [main]
+    tags: ['**']
   pull_request:
 
 concurrency:
