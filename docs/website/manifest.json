@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "2.3.15",
+  "version": "2.3.16b1",
   "sections": {
     "": "Documentation",
     "portfolio": "Product portfolio",
@@ -11,6 +11,11 @@
     "releases": "Releases"
   },
   "pages": [
+    {
+      "slug": "releases/2.3.16b1",
+      "title": "AtMem 2.3.16b1 — Bounded context packing beta",
+      "source": "docs/releases/v2.3.16b1.md"
+    },
     {
       "slug": "releases/2.3.15",
       "title": "AtMem 2.3.15 \u2014 Governed memory tools and measured evaluation",

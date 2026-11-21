@@ -548,6 +548,22 @@ def test_sufficiency_detects_conflicting_approved_values_in_bounded_evidence() -
         assert set(decision.conflicting_unit_ids) == {
             item.unit_id for item in result.candidates
         }
+        request = ContextRequestV3(
+            context_id="context-1", request_id="request-1", scope=SCOPE,
+            query=query, profile_id="context-fast", mode="active", generation=0,
+            budget=RetrievalBudget(candidates_per_channel=2, total_candidates=2, context_bytes=180),
+        )
+        selection = StoredContextEngine(store, generation_id=generation).select(
+            request, AuthorizedManifest(
+                request_id=request.request_id, scope=SCOPE, generation=0,
+                authorized_unit_ids=decision.conflicting_unit_ids,
+                authority_sha256="sha256:test", all_generation_units_authorized=True,
+            ),
+        )
+        assert selection.status == "partial"
+        assert len(selection.selected_unit_ids) == 1
+        assert selection.sufficiency.evidence_unit_ids == selection.selected_unit_ids
+        assert "context_budget_exhausted" in selection.reason_codes
     finally:
         store.close()
 

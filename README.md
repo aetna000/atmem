@@ -1,5 +1,7 @@
 # AtMem
 
+[AtMem 2.3.16b1 beta](docs/releases/v2.3.16b1.md) fixes a V3 context-packing error under tight byte budgets.
+
 [![Version 2.3.15](https://img.shields.io/badge/version-2.3.15-blue)](./docs/releases/v2.3.15.md)
 
 > **AtMem 2.3.15** brings scoped document retrieval and MCP, inspectable action outcomes, and bounded memory-policy studies into the stable package.
