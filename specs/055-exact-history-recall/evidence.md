@@ -92,6 +92,41 @@ PYTHONPATH="$GREPMEM_SOURCE:$PWD" python -m tools.benchmark_grepmem_lookup \
 
 [Machine-readable GrepMem results](evidence/holdout-upstream-grepmem-512.json)
 
+## Temporal answer selection
+
+On the four development routing-code questions, the on-device Apple Foundation
+Models reader chose the current code in both presentations on every question.
+Native V3 delivered both source spans in every case, with the 09:00 update
+first. Each span already gives the time alongside its value. Sorting the
+delivered spans by that time changed only their order. Each pair used exactly
+139 UTF-8 evidence bytes per presentation under the same 512-byte ceiling.
+
+| Presentation | Current answers | Stale answers on retrieval passes | Other answers |
+| --- | ---: | ---: | ---: |
+| Native order | 4/4 | 0/4 | 0/4 |
+| Newest first | 4/4 | 0/4 | 0/4 |
+
+Each presentation used a fresh session, the same question and instruction,
+greedy decoding, and a 48-token response limit. The grader compared the
+trimmed reply to the exact current and stale codes. Replies containing both
+codes count as other. The control already reached 4/4 on this fixture, leaving
+no room to measure an accuracy gain. The pilot stopped after eight model calls.
+[Paired contexts, replies, and scores](evidence/development-temporal-presentation-512.json)
+
+To reproduce with the encrypted-storage environment above and an available
+Apple Intelligence system model on macOS 26, run from the repository root.
+The reader takes one prompt on standard input and writes one answer on standard
+output. The system model can vary with the installed OS and model assets.
+
+```sh
+pilot_dir=$(mktemp -d)
+swiftc tools/temporal_foundation_reader.swift -o "$pilot_dir/reader"
+python -m tools.benchmark_temporal_presentation --split development --output-bytes 512 \
+  --reader "$pilot_dir/reader" \
+  --model "Apple SystemLanguageModel.default, greedy, max 48 response tokens, macOS $(sw_vers -productVersion) ($(sw_vers -buildVersion))" \
+  --output "$pilot_dir/results.json"
+```
+
 ## Follow-on benchmark
 
 Use a pinned revision of [GrepMem's ContextBench generator and grader](https://github.com/limenlp/GrepMem)

@@ -166,7 +166,7 @@ def summarize(rows: list[dict]) -> dict:
     }
 
 
-def _run_benchmark(split: str, *, output_bytes: int) -> dict:
+def _run_benchmark(split: str, *, output_bytes: int, include_temporal_context: bool = False) -> dict:
     history, cases = make_fixture(split)
     arms = {"atmem_v3": [], "summary_plus_literal": []}
     budget = RetrievalBudget(context_bytes=output_bytes, optional_model_calls=0)
@@ -191,14 +191,18 @@ def _run_benchmark(split: str, *, output_bytes: int) -> dict:
                     turn_id=f"turn-{case.id}", mode="active", budget=budget,
                 )
                 started = perf_counter_ns()
+                context = ""
                 try:
                     package = memory.prepare_context_v3(request)
                 except context_service.GovernanceViolation as error:
                     row = score(case, "", source_available=available, status="governance_error",
                                 elapsed_ns=perf_counter_ns() - started, error=str(error))
                 else:
-                    row = score(case, package.context, source_available=available,
+                    context = package.context
+                    row = score(case, context, source_available=available,
                                 status=package.status, elapsed_ns=perf_counter_ns() - started)
+                if include_temporal_context and case.cohort == "latest":
+                    row["context"] = context
                 arms["atmem_v3"].append(row)
                 started = perf_counter_ns()
                 snippet = literal_history(history, case.literal, budget=output_bytes)
@@ -216,7 +220,7 @@ def _run_benchmark(split: str, *, output_bytes: int) -> dict:
     }
 
 
-def run_benchmark(split: str, *, output_bytes: int = OUTPUT_BYTES) -> dict:
+def run_benchmark(split: str, *, output_bytes: int = OUTPUT_BYTES, include_temporal_context: bool = False) -> dict:
     # Key locations are resolved at import time. Start the evaluator with its
     # own home before importing AtMem, separate from any operator key or DB.
     with TemporaryDirectory(prefix="atmem-exact-history-home-") as home:
@@ -225,7 +229,8 @@ def run_benchmark(split: str, *, output_bytes: int = OUTPUT_BYTES) -> dict:
         environment.update(ATMEM_HOME=home, PYTHONPATH=str(Path(__file__).resolve().parents[2]))
         result = subprocess.run(
             [sys.executable, "-m", "atmem.benchmark.exact_history",
-             "--split", split, "--output-bytes", str(output_bytes), "--worker"],
+             "--split", split, "--output-bytes", str(output_bytes), "--worker",
+             *(["--include-temporal-context"] if include_temporal_context else [])],
             cwd=home, env=environment, capture_output=True, text=True,
         )
         if result.returncode:
@@ -239,9 +244,12 @@ def main() -> None:
     parser.add_argument("--output-bytes", type=int, choices=(512, OUTPUT_BYTES), default=OUTPUT_BYTES)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--include-temporal-context", action="store_true",
+                        help="Include native delivered text on synthetic temporal cases for reader comparisons.")
     args = parser.parse_args()
     benchmark = _run_benchmark if args.worker else run_benchmark
-    result = json.dumps(benchmark(args.split, output_bytes=args.output_bytes), indent=2, sort_keys=True) + "\n"
+    result = json.dumps(benchmark(args.split, output_bytes=args.output_bytes,
+                                  include_temporal_context=args.include_temporal_context), indent=2, sort_keys=True) + "\n"
     if args.output:
         with args.output.open("x", encoding="utf-8") as output:
             output.write(result)
