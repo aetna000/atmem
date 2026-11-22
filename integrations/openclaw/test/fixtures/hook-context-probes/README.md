@@ -51,3 +51,14 @@ Corrected locally extracted snapshot SHA256:
 The earlier CI diagnostic's SHA256 was
 `12bb958fec110a32ae047b791735affe1404c60d0d9787500e27b7a830cb48ad`;
 it is retained as failure evidence, not silently relabelled a valid extraction.
+
+## OpenClaw 2026.11.6 review — 2026-11-21
+
+The archive from [CI run 44897475361](https://github.com/aetna000/atmem/actions/runs/44897475361)
+and the independently fetched npm archive match the registry integrity
+`sha512-4MGjAMv8QlVrul3ZbCu8KjM7GhXfLdLzf0IrsO5QZ8LC3oYkduqs2rZiZpPDmTRpT6kXYke/OVaWrB+YmhBHLw==`.
+The hook declarations and optionality are identical to the 2026.11.5 probe.
+The independent declaration check passed. The native allowlist stays unchanged.
+
+Snapshot SHA-256 is
+`edd6af53c95208c971cc89bfa6277911dc7946e1b593b3d8037fece6e9eb0d8d`.

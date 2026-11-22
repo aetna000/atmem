@@ -1,0 +1,128 @@
+{
+  "cases": [
+    {
+      "arms": {
+        "native_order": {
+          "answer": "546d5c347f5fecf3",
+          "context": "At 09:00 queue-5e1c7513 active routing code was 9f39089cdf78540f.\n\nAt 10:00 queue-5e1c7513 active routing code changed to 546d5c347f5fecf3.",
+          "context_bytes": 139,
+          "selection": "current"
+        },
+        "newest_first": {
+          "answer": "546d5c347f5fecf3",
+          "context": "At 10:00 queue-5e1c7513 active routing code changed to 546d5c347f5fecf3.\n\nAt 09:00 queue-5e1c7513 active routing code was 9f39089cdf78540f.",
+          "context_bytes": 139,
+          "selection": "current"
+        }
+      },
+      "expected": "546d5c347f5fecf3",
+      "id": "latest-0",
+      "outdated": "9f39089cdf78540f",
+      "question": "What is the current active routing code for queue-5e1c7513?",
+      "retrieval_error": null,
+      "retrieval_passed": true,
+      "retrieval_status": "sufficient",
+      "stale_delivered": true
+    },
+    {
+      "arms": {
+        "native_order": {
+          "answer": "a40c3bb2fd2fbeff",
+          "context": "At 09:00 queue-e616fae4 active routing code was ffcff4ce888e0a3d.\n\nAt 10:00 queue-e616fae4 active routing code changed to a40c3bb2fd2fbeff.",
+          "context_bytes": 139,
+          "selection": "current"
+        },
+        "newest_first": {
+          "answer": "a40c3bb2fd2fbeff",
+          "context": "At 10:00 queue-e616fae4 active routing code changed to a40c3bb2fd2fbeff.\n\nAt 09:00 queue-e616fae4 active routing code was ffcff4ce888e0a3d.",
+          "context_bytes": 139,
+          "selection": "current"
+        }
+      },
+      "expected": "a40c3bb2fd2fbeff",
+      "id": "latest-1",
+      "outdated": "ffcff4ce888e0a3d",
+      "question": "What is the current active routing code for queue-e616fae4?",
+      "retrieval_error": null,
+      "retrieval_passed": true,
+      "retrieval_status": "sufficient",
+      "stale_delivered": true
+    },
+    {
+      "arms": {
+        "native_order": {
+          "answer": "b11ddffcd27b8e36",
+          "context": "At 09:00 queue-7bfa2f9b active routing code was 6e76da4b24aaf86d.\n\nAt 10:00 queue-7bfa2f9b active routing code changed to b11ddffcd27b8e36.",
+          "context_bytes": 139,
+          "selection": "current"
+        },
+        "newest_first": {
+          "answer": "b11ddffcd27b8e36",
+          "context": "At 10:00 queue-7bfa2f9b active routing code changed to b11ddffcd27b8e36.\n\nAt 09:00 queue-7bfa2f9b active routing code was 6e76da4b24aaf86d.",
+          "context_bytes": 139,
+          "selection": "current"
+        }
+      },
+      "expected": "b11ddffcd27b8e36",
+      "id": "latest-2",
+      "outdated": "6e76da4b24aaf86d",
+      "question": "What is the current active routing code for queue-7bfa2f9b?",
+      "retrieval_error": null,
+      "retrieval_passed": true,
+      "retrieval_status": "sufficient",
+      "stale_delivered": true
+    },
+    {
+      "arms": {
+        "native_order": {
+          "answer": "7b54c3ee751de403",
+          "context": "At 09:00 queue-899f367f active routing code was 98d417031b3f161d.\n\nAt 10:00 queue-899f367f active routing code changed to 7b54c3ee751de403.",
+          "context_bytes": 139,
+          "selection": "current"
+        },
+        "newest_first": {
+          "answer": "7b54c3ee751de403",
+          "context": "At 10:00 queue-899f367f active routing code changed to 7b54c3ee751de403.\n\nAt 09:00 queue-899f367f active routing code was 98d417031b3f161d.",
+          "context_bytes": 139,
+          "selection": "current"
+        }
+      },
+      "expected": "7b54c3ee751de403",
+      "id": "latest-3",
+      "outdated": "98d417031b3f161d",
+      "question": "What is the current active routing code for queue-899f367f?",
+      "retrieval_error": null,
+      "retrieval_passed": true,
+      "retrieval_status": "sufficient",
+      "stale_delivered": true
+    }
+  ],
+  "fixture_sha256": "40759c3b24e36da965456868d3770296fd85a2071a4d644c3f2e37cbd868016f",
+  "format": "atmem-temporal-presentation-v1",
+  "model": "Apple SystemLanguageModel.default, greedy, max 48 response tokens, macOS 26.5.2 (25F84)",
+  "native_context_service_sha256": "849c146db9e5d449560914129df55888e1cc03334866eb7243a387056d21ff59",
+  "native_to_newest_first": {
+    "current->current": 4
+  },
+  "output_budget_bytes": 512,
+  "platform": "macOS-26.5.2-arm64-arm-64bit",
+  "prompt_template": "Use the evidence to answer the question. Return only the routing code.\n\nEvidence\n{context}\n\n{question}",
+  "reader_calls": 8,
+  "reader_sha256": "df99f63865a05d08c207a48b89438bf04c67900247701a5a2fe90fe49c53ddaf",
+  "retrieval_passes": 4,
+  "split": "development",
+  "summary": {
+    "native_order": {
+      "current": 4,
+      "other": 0,
+      "stale": 0,
+      "stale_on_retrieval_pass": 0
+    },
+    "newest_first": {
+      "current": 4,
+      "other": 0,
+      "stale": 0,
+      "stale_on_retrieval_pass": 0
+    }
+  }
+}

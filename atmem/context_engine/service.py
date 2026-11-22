@@ -74,35 +74,34 @@ class StoredContextEngine:
         # additional neighbours for diagnostics, but selecting them here
         # would reload and expose evidence the packer explicitly excluded.
         selected = packed.included_unit_ids
+        selected_set = set(selected)
+        packed_result = replace(
+            result,
+            candidates=tuple(item for item in result.candidates if item.unit_id in selected_set),
+        )
         reason_codes = list(decision.reason_codes)
         if self.balanced_pools:
             reason_codes.append('pool_interleaving_v1')
-        if decision.status == "sufficient" and not packed.complete:
-            covered = {
-                obligation_id
-                for item in result.candidates
-                if item.unit_id in packed.included_unit_ids
-                for obligation_id in item.matched_obligation_ids
-            }
-            required = decision.required_obligation_ids
-            decision = SufficiencyDecisionV2(
-                decision_id=decision.decision_id,
-                status="partial",
-                required_obligation_ids=required,
-                covered_obligation_ids=tuple(item for item in required if item in covered),
-                missing_obligation_ids=tuple(item for item in required if item not in covered),
-                evidence_unit_ids=packed.included_unit_ids,
-                reason_codes=("context_budget_exhausted",),
-            )
-            selected = packed.included_unit_ids
+        if not packed.complete:
+            packed_decision = decide_sufficiency(plan, packed_result)
+            if decision.status in {"sufficient", "partial"} and packed_decision.status != "sufficient":
+                decision = packed_decision
+            else:
+                # Losing cited evidence cannot settle a conflict or make an
+                # incomplete package sufficient.
+                decision = SufficiencyDecisionV2(
+                    decision_id=packed_decision.decision_id,
+                    status="partial",
+                    required_obligation_ids=decision.required_obligation_ids,
+                    covered_obligation_ids=(),
+                    missing_obligation_ids=decision.required_obligation_ids,
+                    evidence_unit_ids=tuple(
+                        unit_id for unit_id in decision.evidence_unit_ids if unit_id in selected_set
+                    ),
+                    reason_codes=decision.reason_codes,
+                )
+            decision = replace(decision, reason_codes=(*decision.reason_codes, "context_budget_exhausted"))
             reason_codes.append("context_budget_exhausted")
-        packed_result = replace(
-            result,
-            candidates=tuple(
-                item for item in result.candidates
-                if item.unit_id in set(selected)
-            ),
-        )
         return EngineSelection(
             status=decision.status,
             selected_unit_ids=selected,
