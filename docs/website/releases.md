@@ -1,6 +1,6 @@
 # Releases
 
-[AtMem 2.3.16b2 beta](../releases/v2.3.16b2.md) fixes a V3 context-packing error under tight byte budgets.
+[AtMem 2.3.16b3 beta](../releases/v2.3.16b3.md) adds opt-in duplicate-read context reduction for the Python SDK.
 
 ## Current stable: 2.3.15
 

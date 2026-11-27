@@ -62,3 +62,17 @@ The independent declaration check passed. The native allowlist stays unchanged.
 
 Snapshot SHA-256 is
 `edd6af53c95208c971cc89bfa6277911dc7946e1b593b3d8037fece6e9eb0d8d`.
+
+## OpenClaw 2026.11.10 review — 2026-11-27
+
+The npm archive matched the registry and the diagnostic from
+[CI run 45919458098](https://github.com/aetna000/atmem/actions/runs/45919458098).
+Archive integrity is
+`sha512-/FKDjxY1ZdUSXHx1a9b4EUpPRZywM3uv4181g22XImJfp/5+h+fFUZ7B7HthNrdYzq//05zH0Yf7mefzIlWFaQ==`.
+The independently extracted snapshot matches the CI snapshot at SHA-256
+`890461c122dcff538760b14b354bb6638b6a9951f5acc3ea2b662eb8e38c4352`.
+
+Compared with 2026.11.6, the agent context adds optional `completedTurn`
+and `toolNames` fields. The tool context adds optional `backgroundRun`.
+Hook bindings and the optional session and owner fields are unchanged.
+The declaration gate passed locally. Native authorization is unchanged.

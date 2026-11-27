@@ -7,12 +7,15 @@ from threading import RLock
 from typing import Any
 
 from atmem.adapters.base import AtMemAdapterIdentity, AtMemTurnLifecycle, _stable_text
+from atmem.context_engine.read_deduplication import ReadDeduplication, normalized_call
 from atmem.control.manager import ControlPlaneManager
 
 
 def create_langgraph_middleware(
     manager: ControlPlaneManager,
     identity: AtMemAdapterIdentity,
+    *,
+    read_deduplication: ReadDeduplication | None = None,
 ) -> Any:
     """Return native middleware for LangChain agents running on LangGraph."""
     try:
@@ -46,6 +49,8 @@ def create_langgraph_middleware(
             governed = turn.context_for_model()
             task_governed = turn.task_context_for_model()
             messages = list(request.messages)
+            if read_deduplication is not None:
+                messages = project_langchain_messages(messages, request.runtime, read_deduplication)
             if governed:
                 messages.append(
                     HumanMessage(
@@ -85,6 +90,8 @@ def create_langgraph_middleware(
             governed = turn.context_for_model()
             task_governed = turn.task_context_for_model()
             messages = list(request.messages)
+            if read_deduplication is not None:
+                messages = project_langchain_messages(messages, request.runtime, read_deduplication)
             if governed:
                 messages.append(
                     HumanMessage(
@@ -276,3 +283,27 @@ def _tool_call(value: Any) -> tuple[str, str, Any]:
     name = str(getattr(value, "name", None) or "tool")
     call_id = str(getattr(value, "id", None) or f"tool_{id(value)}")
     return name, call_id, getattr(value, "args", {}) or {}
+
+
+def project_langchain_messages(messages, runtime, policy: ReadDeduplication):
+    """Project model-node input without updating graph state or checkpoints."""
+    from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
+    normalized = []
+    for message in messages:
+        if isinstance(message, AIMessage):
+            calls = [normalized_call(c.get("id"), c["name"], c["args"]) for c in message.tool_calls]
+            normalized.append({"role": "assistant", "tool_calls": calls if not message.invalid_tool_calls else []})
+        elif isinstance(message, ToolMessage):
+            normalized.append({
+                "role": "tool", "tool_call_id": message.tool_call_id,
+                "content": (message.content if message.status == "success"
+                            and isinstance(message.content, str) else None),
+            })
+        else:
+            normalized.append({"role": "user" if isinstance(message, HumanMessage) else "other"})
+    projected = policy.project(runtime, messages, normalized)
+    return [
+        message if before is after else message.model_copy(update={"content": after["content"]})
+        for message, before, after in zip(messages, normalized, projected)
+    ]
