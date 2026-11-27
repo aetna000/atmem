@@ -417,3 +417,101 @@ def test_langgraph_middleware_records_tool_request_and_completion() -> None:
     event_types = [row["event_type"] for row in manager.events]
     assert event_types.count("tool.requested") == 1
     assert event_types.count("tool.completed") == 1
+
+
+@pytest.mark.parametrize("enabled,attested", [(False, True), (True, False), (True, True)])
+def test_pydantic_duplicate_reads_change_model_input_only(enabled, attested) -> None:
+    pytest.importorskip("pydantic_ai")
+    from pydantic_ai import Agent
+    from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolReturnPart, UserPromptPart
+    from pydantic_ai.models.function import FunctionModel
+
+    from atmem.context_engine.read_deduplication import ReadDeduplication, VerifiedRead
+
+    body = "exact file contents\n" * 30
+    verified = set()
+    delivered = []
+    calls = iter(("read_1", "read_2"))
+
+    def model(messages, info):
+        del info
+        if len(delivered) < 2:
+            delivered.append([])
+            return ModelResponse(parts=[ToolCallPart("read", {"path": "sample.py"}, next(calls))])
+        delivered.append([
+            p.content for message in messages for p in message.parts if isinstance(p, ToolReturnPart)
+        ])
+        assert any(
+            isinstance(p, UserPromptPart) and "User likes tea." in p.content
+            for message in messages for p in message.parts
+        )
+        return ModelResponse(parts=[TextPart("done")])
+
+    policy = ReadDeduplication(lambda _ctx, _messages: verified if attested else (), len, grace=0)
+    manager = _Manager()
+    adapter = PydanticAIAtMemAdapter(manager, _identity(), read_deduplication=policy if enabled else None)
+    agent = Agent(FunctionModel(model), capabilities=[adapter.capability()])
+
+    @agent.tool_plain
+    def read(path: str) -> str:
+        """Read a fixture file."""
+        assert path == "sample.py"
+        verified.add(VerifiedRead.from_result(f"read_{len(verified) + 1}", {"path": path}, body))
+        return body
+
+    result = agent.run_sync("Read the fixture twice")
+    assert [
+        p.content for message in result.all_messages() for p in message.parts if isinstance(p, ToolReturnPart)
+    ] == [body, body]
+    first, second = delivered[-1]
+    expected_first = "[Identical read result retained at tool call read_2.]" if enabled and attested else body
+    assert first == expected_first
+    assert second == body
+
+
+@pytest.mark.parametrize("async_call", [False, True])
+def test_langgraph_duplicate_reads_change_model_input_only(async_call) -> None:
+    pytest.importorskip("langchain")
+    import asyncio
+
+    from langchain.agents import create_agent
+    from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
+    from langchain_core.messages import AIMessage, ToolMessage
+    from langchain_core.tools import tool
+
+    from atmem.context_engine.read_deduplication import ReadDeduplication, VerifiedRead
+
+    class ObservedModel(FakeMessagesListChatModel):
+        def bind_tools(self, *args, **kwargs):
+            return self
+
+        def _generate(self, messages, *args, **kwargs):
+            delivered.append([m.content for m in messages if isinstance(m, ToolMessage)])
+            return super()._generate(messages, *args, **kwargs)
+
+    body = "exact file contents\n" * 30
+    verified = set()
+    delivered = []
+
+    @tool
+    def read(path: str) -> str:
+        """Read a fixture file."""
+        assert path == "sample.py"
+        verified.add(VerifiedRead.from_result(f"read_{len(verified) + 1}", {"path": path}, body))
+        return body
+
+    model = ObservedModel(responses=[
+        AIMessage(content="", tool_calls=[{"name": "read", "args": {"path": "sample.py"}, "id": f"read_{i}"}])
+        for i in (1, 2)
+    ] + [AIMessage(content="done")])
+    policy = ReadDeduplication(lambda _runtime, _messages: verified, len, grace=0)
+    middleware = create_langgraph_middleware(_Manager(inject=False), _identity(), read_deduplication=policy)
+    agent = create_agent(model, tools=[read], middleware=[middleware])
+    request = {"messages": [{"role": "user", "content": "Read the fixture twice"}]}
+    if async_call:
+        result = asyncio.run(agent.ainvoke(request))
+    else:
+        result = agent.invoke(request)
+
+    assert [m.content for m in result["messages"] if isinstance(m, ToolMessage)] == [body, body]
+    assert delivered[-1] == ["[Identical read result retained at tool call read_2.]", body]

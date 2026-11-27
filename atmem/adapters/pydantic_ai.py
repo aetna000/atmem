@@ -7,6 +7,7 @@ from threading import RLock
 from typing import Any
 
 from atmem.adapters.base import AtMemAdapterIdentity, AtMemTurnLifecycle, _stable_text
+from atmem.context_engine.read_deduplication import ReadDeduplication, normalized_call
 from atmem.control.manager import ControlPlaneManager
 
 
@@ -17,16 +18,19 @@ class PydanticAIAtMemAdapter:
         self,
         manager: ControlPlaneManager,
         identity: AtMemAdapterIdentity,
+        *,
+        read_deduplication: ReadDeduplication | None = None,
     ) -> None:
         self.manager = manager
+        self.read_deduplication = read_deduplication
         self.identity = replace(identity, framework="pydantic-ai")
         self._turns: dict[str, AtMemTurnLifecycle] = {}
         self._lock = RLock()
 
     def capability(self) -> Any:
-        """Return a native ``pydantic_ai.capabilities.Hooks`` capability."""
+        """Return a native Pydantic AI capability."""
         try:
-            from pydantic_ai.capabilities import Hooks
+            from pydantic_ai.capabilities import AbstractCapability, CombinedCapability, Hooks
             from pydantic_ai.messages import ModelRequest, UserPromptPart
         except ImportError as exc:  # pragma: no cover - environment dependent
             raise ImportError(
@@ -53,16 +57,19 @@ class PydanticAIAtMemAdapter:
             with self._lock:
                 self._turns[run_id] = turn
 
-        @hooks.on.before_model_request
-        async def before_model_request(ctx: Any, request_context: Any) -> Any:
+        def prepare_model_input(ctx: Any, request_context: Any) -> Any:
             turn = self._turn(ctx)
             governed = turn.context_for_model()
             task_governed = turn.task_context_for_model()
             messages = list(request_context.messages)
-            if governed:
-                messages.append(ModelRequest(parts=[UserPromptPart(governed)]))
-            if task_governed:
-                messages.append(ModelRequest(parts=[UserPromptPart(task_governed)]))
+            if self.read_deduplication is not None:
+                messages = project_pydantic_messages(messages, ctx, self.read_deduplication)
+            additions = [UserPromptPart(text) for text in (governed, task_governed) if text]
+            if additions and self.read_deduplication is not None and messages and isinstance(messages[-1], ModelRequest):
+                last = messages[-1]
+                messages[-1] = replace(last, parts=[*last.parts, *additions])
+            else:
+                messages.extend(ModelRequest(parts=[part]) for part in additions)
             model_name = str(
                 getattr(request_context, "model_id", None)
                 or getattr(request_context.model, "model_name", None)
@@ -84,6 +91,16 @@ class PydanticAIAtMemAdapter:
                 ),
             )
             return replace(request_context, messages=messages)
+
+        @hooks.on.before_model_request
+        async def before_model_request(ctx: Any, request_context: Any) -> Any:
+            if self.read_deduplication is None:
+                return prepare_model_input(ctx, request_context)
+            return request_context
+
+        class ProjectModelInput(AbstractCapability):
+            async def wrap_model_request(self, ctx, *, request_context, handler):
+                return await handler(prepare_model_input(ctx, request_context))
 
         @hooks.on.after_model_request
         async def after_model_request(
@@ -174,6 +191,8 @@ class PydanticAIAtMemAdapter:
                 self._turns.pop(run_id, None)
             raise error
 
+        if self.read_deduplication is not None:
+            return CombinedCapability([hooks, ProjectModelInput()])
         return hooks
 
     def _run_id(self, ctx: Any) -> str:
@@ -237,3 +256,41 @@ def _pydantic_execution_identity(ctx: Any) -> dict[str, str]:
         }.items()
         if value
     }
+
+
+def project_pydantic_messages(messages, runtime, policy: ReadDeduplication):
+    """Project a Pydantic AI request while preserving its original parts."""
+    from pydantic_ai.messages import (
+        ModelRequest, ModelResponse, RetryPromptPart, ToolCallPart, ToolReturnPart, UserPromptPart,
+    )
+
+    normalized = []
+    result_parts = {}
+    for index, message in enumerate(messages):
+        if isinstance(message, ModelResponse):
+            calls = [normalized_call(p.tool_call_id, p.tool_name, p.args)
+                     for p in message.parts if isinstance(p, ToolCallPart)]
+            normalized.append({"role": "assistant", "tool_calls": calls})
+        elif isinstance(message, ModelRequest):
+            for part_index, part in enumerate(message.parts):
+                if isinstance(part, (ToolReturnPart, RetryPromptPart)) and part.tool_call_id:
+                    entry = {"role": "tool", "tool_call_id": part.tool_call_id}
+                    if (isinstance(part, ToolReturnPart) and getattr(part, "outcome", None) == "success"
+                        and isinstance(part.content, str)):
+                        entry["content"] = part.content
+                        result_parts[len(normalized)] = (index, part_index)
+                    normalized.append(entry)
+                else:
+                    normalized.append({"role": "user" if isinstance(part, UserPromptPart) else "other"})
+        else:
+            normalized.append({"role": "other"})
+
+    projected = policy.project(runtime, messages, normalized)
+    updated = list(messages)
+    for position, (index, part_index) in result_parts.items():
+        if projected[position] is normalized[position]:
+            continue
+        parts = list(updated[index].parts)
+        parts[part_index] = replace(parts[part_index], content=projected[position]["content"])
+        updated[index] = replace(updated[index], parts=parts)
+    return updated

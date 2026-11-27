@@ -1,0 +1,330 @@
+{
+  "corpus": "synthetic-program-reads-v1",
+  "format": "atmem-context-eviction-report-v1",
+  "grace_tool_batches": 0,
+  "measurement": "canonical request JSON token estimate",
+  "model_calls": 0,
+  "sessions": [
+    {
+      "id": "repeat-heavy",
+      "requests": [
+        {
+          "baseline_tokens": 40,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 33,
+          "net_saved_tokens": 0,
+          "projected_tokens": 40,
+          "replacement_instances": 0,
+          "request": 1
+        },
+        {
+          "baseline_tokens": 3294,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 3287,
+          "net_saved_tokens": 0,
+          "projected_tokens": 3294,
+          "replacement_instances": 0,
+          "request": 2
+        },
+        {
+          "baseline_tokens": 3352,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 3345,
+          "net_saved_tokens": 0,
+          "projected_tokens": 3352,
+          "replacement_instances": 0,
+          "request": 3
+        },
+        {
+          "baseline_tokens": 6606,
+          "candidate_body_tokens": 3198,
+          "first_extra_rewrite_message_index": 3,
+          "message_tokens": 6599,
+          "net_saved_tokens": 3185,
+          "projected_tokens": 3421,
+          "replacement_instances": 1,
+          "request": 4
+        },
+        {
+          "baseline_tokens": 6664,
+          "candidate_body_tokens": 3198,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 6657,
+          "net_saved_tokens": 3185,
+          "projected_tokens": 3479,
+          "replacement_instances": 1,
+          "request": 5
+        },
+        {
+          "baseline_tokens": 6722,
+          "candidate_body_tokens": 3198,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 6715,
+          "net_saved_tokens": 3185,
+          "projected_tokens": 3537,
+          "replacement_instances": 1,
+          "request": 6
+        },
+        {
+          "baseline_tokens": 9976,
+          "candidate_body_tokens": 6396,
+          "first_extra_rewrite_message_index": 3,
+          "message_tokens": 9969,
+          "net_saved_tokens": 6370,
+          "projected_tokens": 3606,
+          "replacement_instances": 2,
+          "request": 7
+        },
+        {
+          "baseline_tokens": 10034,
+          "candidate_body_tokens": 6396,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 10027,
+          "net_saved_tokens": 6370,
+          "projected_tokens": 3664,
+          "replacement_instances": 2,
+          "request": 8
+        },
+        {
+          "baseline_tokens": 10092,
+          "candidate_body_tokens": 6396,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 10085,
+          "net_saved_tokens": 6370,
+          "projected_tokens": 3722,
+          "replacement_instances": 2,
+          "request": 9
+        },
+        {
+          "baseline_tokens": 10150,
+          "candidate_body_tokens": 6396,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 10143,
+          "net_saved_tokens": 6370,
+          "projected_tokens": 3780,
+          "replacement_instances": 2,
+          "request": 10
+        }
+      ]
+    },
+    {
+      "id": "single-late-repeat",
+      "requests": [
+        {
+          "baseline_tokens": 40,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 33,
+          "net_saved_tokens": 0,
+          "projected_tokens": 40,
+          "replacement_instances": 0,
+          "request": 1
+        },
+        {
+          "baseline_tokens": 3294,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 3287,
+          "net_saved_tokens": 0,
+          "projected_tokens": 3294,
+          "replacement_instances": 0,
+          "request": 2
+        },
+        {
+          "baseline_tokens": 3352,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 3345,
+          "net_saved_tokens": 0,
+          "projected_tokens": 3352,
+          "replacement_instances": 0,
+          "request": 3
+        },
+        {
+          "baseline_tokens": 3410,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 3403,
+          "net_saved_tokens": 0,
+          "projected_tokens": 3410,
+          "replacement_instances": 0,
+          "request": 4
+        },
+        {
+          "baseline_tokens": 6664,
+          "candidate_body_tokens": 3198,
+          "first_extra_rewrite_message_index": 3,
+          "message_tokens": 6657,
+          "net_saved_tokens": 3185,
+          "projected_tokens": 3479,
+          "replacement_instances": 1,
+          "request": 5
+        }
+      ]
+    },
+    {
+      "id": "changed-partial-and-failed",
+      "requests": [
+        {
+          "baseline_tokens": 40,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 33,
+          "net_saved_tokens": 0,
+          "projected_tokens": 40,
+          "replacement_instances": 0,
+          "request": 1
+        },
+        {
+          "baseline_tokens": 3294,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 3287,
+          "net_saved_tokens": 0,
+          "projected_tokens": 3294,
+          "replacement_instances": 0,
+          "request": 2
+        },
+        {
+          "baseline_tokens": 6548,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 6541,
+          "net_saved_tokens": 0,
+          "projected_tokens": 6548,
+          "replacement_instances": 0,
+          "request": 3
+        },
+        {
+          "baseline_tokens": 9810,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 9803,
+          "net_saved_tokens": 0,
+          "projected_tokens": 9810,
+          "replacement_instances": 0,
+          "request": 4
+        },
+        {
+          "baseline_tokens": 13064,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 13057,
+          "net_saved_tokens": 0,
+          "projected_tokens": 13064,
+          "replacement_instances": 0,
+          "request": 5
+        },
+        {
+          "baseline_tokens": 13122,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 13115,
+          "net_saved_tokens": 0,
+          "projected_tokens": 13122,
+          "replacement_instances": 0,
+          "request": 6
+        },
+        {
+          "baseline_tokens": 13180,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 13173,
+          "net_saved_tokens": 0,
+          "projected_tokens": 13180,
+          "replacement_instances": 0,
+          "request": 7
+        }
+      ]
+    },
+    {
+      "id": "read-light",
+      "requests": [
+        {
+          "baseline_tokens": 40,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 33,
+          "net_saved_tokens": 0,
+          "projected_tokens": 40,
+          "replacement_instances": 0,
+          "request": 1
+        },
+        {
+          "baseline_tokens": 98,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 91,
+          "net_saved_tokens": 0,
+          "projected_tokens": 98,
+          "replacement_instances": 0,
+          "request": 2
+        },
+        {
+          "baseline_tokens": 156,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 149,
+          "net_saved_tokens": 0,
+          "projected_tokens": 156,
+          "replacement_instances": 0,
+          "request": 3
+        },
+        {
+          "baseline_tokens": 3410,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 3403,
+          "net_saved_tokens": 0,
+          "projected_tokens": 3410,
+          "replacement_instances": 0,
+          "request": 4
+        },
+        {
+          "baseline_tokens": 3468,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 3461,
+          "net_saved_tokens": 0,
+          "projected_tokens": 3468,
+          "replacement_instances": 0,
+          "request": 5
+        },
+        {
+          "baseline_tokens": 3526,
+          "candidate_body_tokens": 0,
+          "first_extra_rewrite_message_index": null,
+          "message_tokens": 3519,
+          "net_saved_tokens": 0,
+          "projected_tokens": 3526,
+          "replacement_instances": 0,
+          "request": 6
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "baseline_tokens": 153446,
+    "final_baseline_request_tokens": 33520,
+    "final_candidate_body_tokens": 9594,
+    "final_candidate_percent": 28.65,
+    "final_message_tokens": 33492,
+    "final_net_saved_percent": 28.51,
+    "final_net_saved_tokens": 9555,
+    "net_saved_percent": 24.91,
+    "net_saved_tokens": 38220,
+    "projected_tokens": 115226,
+    "replacement_instances": 12,
+    "requests": 28,
+    "requests_with_extra_prefix_rewrite": 3
+  },
+  "tokenizer": {
+    "encoding": "o200k_base",
+    "library": "tiktoken",
+    "version": "0.12.0"
+  },
+  "trace_sha256": "8f9283a3116148493bc84ef0e178b4c7d835e8a90b134c1ee202348b8367b5a8"
+}
