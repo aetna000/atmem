@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "2.3.16b2",
+  "version": "2.3.16b3",
   "sections": {
     "": "Documentation",
     "portfolio": "Product portfolio",
@@ -11,6 +11,11 @@
     "releases": "Releases"
   },
   "pages": [
+    {
+      "slug": "releases/2.3.16b3",
+      "title": "AtMem 2.3.16b3 — Opt-in SDK context deduplication beta",
+      "source": "docs/releases/v2.3.16b3.md"
+    },
     {
       "slug": "releases/2.3.16b2",
       "title": "AtMem 2.3.16b2 — Bounded context packing beta",

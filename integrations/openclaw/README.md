@@ -2,14 +2,14 @@
 
 This npm package is the host bridge for AtMem. It is not a standalone memory engine and should not be installed directly.
 
-This beta source tree targets bridge `2.3.16-beta.2` for AtMem `2.3.16b2`.
+This beta source tree targets bridge `2.3.16-beta.3` for AtMem `2.3.16b3`.
 The prerelease publisher uses the npm `beta` channel.
 Install or upgrade through the matching AtMem Python package.
 
 Use the Python-owned installer:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.16b2
+python -m pip install --upgrade atmem==2.3.16b3
 atmem openclaw install
 ```
 

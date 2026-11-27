@@ -1,8 +1,8 @@
 # AtMem
 
-[AtMem 2.3.16b2 beta](docs/releases/v2.3.16b2.md) fixes a V3 context-packing error under tight byte budgets.
+[AtMem 2.3.16b3 beta](docs/releases/v2.3.16b3.md) adds opt-in duplicate-read context reduction for the Python SDK.
 
-[![Version 2.3.16b2](https://img.shields.io/badge/version-2.3.16b2-blue)](./docs/releases/v2.3.16b2.md)
+[![Version 2.3.16b3](https://img.shields.io/badge/version-2.3.16b3-blue)](./docs/releases/v2.3.16b3.md)
 
 > **AtMem 2.3.15** brings scoped document retrieval and MCP, inspectable action outcomes, and bounded memory-policy studies into the stable package.
 > Install: `python -m pip install --upgrade atmem==2.3.15`.
@@ -34,15 +34,15 @@ Experimental [measured memory adaptation](docs/measured-memory-adaptation.md) co
 
 ## Start here
 
-These commands install **2.3.16b2**. Read the
-[beta release note](docs/releases/v2.3.16b2.md) for compatibility and opt-ins.
+These commands install **2.3.16b3**. Read the
+[beta release note](docs/releases/v2.3.16b3.md) for compatibility and opt-ins.
 Installation does not automatically enable the new RAG/feedback services or
 qualify a learning policy.
 
 ### 1. Install AtMem and choose memory intelligence
 
 ```bash
-python -m pip install --upgrade atmem==2.3.16b2
+python -m pip install --upgrade atmem==2.3.16b3
 atmem atbot setup
 atmem atbot doctor
 atmem init
@@ -103,7 +103,7 @@ package yourself.
 Already using AtMem 2.1 with OpenClaw? Upgrade in place:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.16b2
+python -m pip install --upgrade atmem==2.3.16b3
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -126,7 +126,7 @@ selected by `python`, rather than an unrelated `pip` executable on `PATH`.
 #### Pydantic AI — native capability
 
 ```bash
-python -m pip install 'atmem[pydantic-ai]==2.3.16b2'
+python -m pip install 'atmem[pydantic-ai]==2.3.16b3'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -151,7 +151,7 @@ agent = Agent("openai:gpt-5-mini", capabilities=[memory])
 #### LangChain/LangGraph — native middleware
 
 ```bash
-python -m pip install 'atmem[langgraph]==2.3.16b2'
+python -m pip install 'atmem[langgraph]==2.3.16b3'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
