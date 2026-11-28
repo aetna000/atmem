@@ -185,6 +185,8 @@ def test_outcome_provenance_junit_and_cross_workspace(project):
 def test_dashboard_rerun_uses_new_revision_without_rewriting_original(project, monkeypatch):
     from atmem.agent_team.local import LocalAgents, AgentReply
 
+    monkeypatch.setattr(LocalAgents, "ensure_available", lambda self: None)
+
     monkeypatch.setattr(
         LocalAgents,
         "invoke",
@@ -251,6 +253,8 @@ def test_source_bound_reviewer_and_observed_reader_cost(project):
 
 def test_capture_consent_change_during_model_call_leaves_no_archive(project, monkeypatch):
     from atmem.agent_team.local import LocalAgents, AgentReply
+
+    monkeypatch.setattr(LocalAgents, "ensure_available", lambda self: None)
 
     def change_capture(*args):
         service = project.manager.evidence_service()
