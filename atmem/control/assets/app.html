@@ -334,6 +334,42 @@
     <div class="healthchartcard"><div class="healthcharthead"><div><b>Seven-day run health</b><span>Recorded sessions by day; red marks host-reported run failures.</span></div><div class="chartlegend"><span><i class="healthy"></i>Other recorded runs</span><span><i class="failed"></i>Failed runs</span></div></div><div class="healthchart" id="sessionHealthChart" role="group" aria-label="No session health data loaded"></div></div>
   </section>
 
+  <section class="card team-workspace" id="agentTeam" aria-labelledby="teamTitle">
+    <header class="team-heading">
+      <div><h2 id="teamTitle">Agent handoffs</h2><p class="sub">Follow a question from scoped memory to its answer.</p></div>
+      <div class="team-modes" aria-label="Run source" role="group">
+        <button type="button" id="teamExamples" aria-pressed="true">Recorded examples</button>
+        <button type="button" id="teamLive" aria-pressed="false">My workspace</button>
+      </div>
+    </header>
+    <form id="teamForm" class="team-controls">
+      <label id="teamCaseLabel">Benchmark case<select id="teamCase"><option>Loading examples…</option></select></label>
+      <label id="teamQuestionLabel" hidden>Question<input id="teamQuestion" autocomplete="off" maxlength="1024" placeholder="What is my current routing code?"></label>
+      <label>Routing policy<select id="teamPolicy">
+        <option value="adaptive">Evidence-aware review</option><option value="fixed">Always request review</option><option value="single">Single reader</option>
+      </select></label>
+      <label id="teamBudgetLabel" hidden>Call limit<select id="teamBudget"><option value="2">2 calls</option><option value="1">1 call</option></select></label>
+      <button class="primary" id="teamSubmit" type="submit" hidden>Run locally</button>
+    </form>
+    <p id="teamNotice" class="sub" role="status"></p>
+    <div id="teamTrace" hidden>
+      <div class="team-result"><div><div id="teamOutcome" class="team-outcome"></div><h3 id="teamAnswer"></h3><p id="teamReason"></p></div>
+        <dl id="teamMetrics" class="team-metrics"></dl>
+      </div>
+      <div class="team-canvas">
+        <div class="team-caption"><h3>Handoff trace</h3><span id="teamRunLabel"></span></div>
+        <div id="teamGraph" class="team-graph" role="group" aria-label="Inspect run steps"></div>
+      </div>
+      <section class="team-inspector" aria-labelledby="teamStepTitle">
+        <div class="team-caption"><h3 id="teamStepTitle">Step details</h3><span id="teamStepTiming"></span></div>
+        <p id="teamStepReason"></p><dl id="teamStepFacts" class="team-facts"></dl>
+        <details id="teamPayload" hidden><summary id="teamEvidenceLabel">Evidence delivered to this agent</summary><pre id="teamEvidence"></pre><p id="teamReceipt" hidden></p></details>
+      </section>
+      <p id="teamMetadata" class="team-metadata"></p>
+      <div id="teamComparison" class="team-comparison" hidden></div>
+    </div>
+  </section>
+
   <section class="card" id="blackboxCard">
     <div class="activityhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-pulse"/></svg><span>Recent agent activity</span></h2><div class="activitytools"><input id="activityQuery" aria-label="Search recent agent activity" placeholder="Search actions…"><select id="activityTopic" aria-label="Filter by topic"><option value="all">All topics</option><option value="agents">Agents</option><option value="memory">Memory</option><option value="tools">Tools</option><option value="web">Web</option><option value="email">Email</option><option value="conversation">Conversation</option></select><select id="activityWhen" aria-label="Filter by time"><option value="all">All time</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option></select><button class="secondary iconbutton" id="blackboxRefresh" type="button" aria-label="Refresh recent activity" title="Refresh recent activity"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg></button></div></div>
     <div class="activityscope"><button class="secondary" id="activityBackground" type="button" aria-pressed="false">Show background reviews</button><span>Updates automatically</span></div>

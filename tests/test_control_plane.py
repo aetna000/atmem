@@ -1097,6 +1097,8 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
             "/api/home/adopt",
         "/api/product",
         "/api/companions",
+        "/api/agent-team/examples",
+        "/api/agent-team/run",
         "/api/feedback/status",
         "/api/feedback/quality",
         "/api/feedback/action",

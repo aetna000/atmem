@@ -49,6 +49,7 @@ class ControlDashboardServer(ThreadingHTTPServer):
         self.html = html
         self.csrf_token = secrets.token_urlsafe(32)
         self.hermes_requests = BoundedSemaphore(4)
+        self.team_requests = BoundedSemaphore(1)
         self.feedback_dashboard = feedback_dashboard
 
 
@@ -92,6 +93,10 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "public, max-age=86400")
             self.end_headers()
             self.wfile.write(body)
+            return
+        if path == "/api/agent-team/examples":
+            examples = files("atmem.control").joinpath("assets/team-examples.json")
+            self._json(HTTPStatus.OK, json.loads(examples.read_text(encoding="utf-8")))
             return
         if path == "/api/session":
             self._json(HTTPStatus.OK, {"csrf_token": self.server.csrf_token})
@@ -673,6 +678,17 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         try:
             body = self._body(maximum=180_000_000 if path == "/api/code" else 1_000_000)
             path = _canonical_api_path(urlparse(self.path).path)
+            if path == "/api/agent-team/run":
+                from atmem.control.agent_team import execute
+                self._require_identity_session()
+                if not self.server.team_requests.acquire(blocking=False):
+                    self._json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "Another local team run is in progress."})
+                    return
+                try:
+                    self._json(HTTPStatus.OK, execute(self.server.manager, self._require_identity_session, body))
+                finally:
+                    self.server.team_requests.release()
+                return
             if path == "/api/feedback/action":
                 identity = self._require_identity_session()
                 if self.server.feedback_dashboard is None:
