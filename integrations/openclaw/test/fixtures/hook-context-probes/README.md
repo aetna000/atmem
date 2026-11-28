@@ -76,3 +76,7 @@ Compared with 2026.11.6, the agent context adds optional `completedTurn`
 and `toolNames` fields. The tool context adds optional `backgroundRun`.
 Hook bindings and the optional session and owner fields are unchanged.
 The declaration gate passed locally. Native authorization is unchanged.
+
+## OpenClaw 2026.11.11 declaration review
+
+The locally fetched npm archive matched [CI run 46141632301](https://github.com/aetna000/atmem/actions/runs/46141632301) at `sha512-WtdcNM9j4J65Uv/+0qoy44ydBLno1M2BN5S93kOZ1YYHGBJG9VsHT2TPmx1K1HnzjBbfMfEzL5RjTlRXN3TqTA==`. Both probes produced the same snapshot, SHA-256 `93cf9113ab55bcab70b5a9b9c4427d976a382fc81f91929570186c46333b2963`. The hook bindings, fields and optionality match 2026.11.10. The version field is the only difference. The compatibility test passed with the existing native permission allowlist.
