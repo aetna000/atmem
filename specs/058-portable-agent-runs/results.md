@@ -15,7 +15,9 @@ The task definitions and acceptance rule were committed in `346f919` before the 
 | Lookup attempts | 10 | 16 | 20 |
 | Typed record rows returned by storage, counting repeat reads | 45 | 90 | 105 |
 | Distinct typed records per task, summed across tasks | 18 | 21 | 21 |
-| Raw source body fetches | 0 | 0 | 0 |
+| Calls to the raw source lookup API | 0 | 0 | 0 |
+
+Storage instrumentation counted rows returned by `typed_units_for_records` and calls to `get_protocol_source_by_id`. Opening an original excerpt later in the dashboard is a separate, authorized source read.
 
 Mandatory review returned `BR-814 (positive)` on the corrected identifier case. The expected answer was `BR-814`. The extra annotation failed exact grading. It contained no stale identifier. Three tasks declared specific stale values in advance. None appeared in a returned answer. All three policies abstained on conflict, expiry, a similar name with no exact assignment, and a missing assignment. Adaptive review added 190 total tokens over the single reader. The declared automatic-review criterion required higher accuracy and no increase in tokens per correct task. Review stays opt-in. This small synthetic set measures these decisions on one model. [Scoring and storage instrumentation](../../tools/benchmark_agent_team.py)
 
