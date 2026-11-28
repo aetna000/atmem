@@ -13,7 +13,7 @@ Use Python 3.10–3.13 in a separate environment:
 ```sh
 python -m venv .venv
 . .venv/bin/activate
-python -m pip install 'atmem[code]==2.3.15'
+python -m pip install 'atmem[code]==2.3.16'
 python -m pip check
 atmem-memory-study --help
 ```

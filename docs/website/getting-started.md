@@ -1,6 +1,6 @@
 # Your first memory
 
-Stable [2.3.15](../releases/v2.3.15.md) adds opt-in governed RAG/MCP, verified feedback and experimental memory-policy studies.
+Stable [2.3.16](../releases/v2.3.16.md) adds source-checked agent handoffs and a dashboard replay of a corrected run.
 The installation examples below use the current stable package; optional feedback/study features require explicit setup.
 
 
@@ -11,7 +11,7 @@ does not contact a model, and does not enable agent injection.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install atmem==2.3.15
+python -m pip install atmem==2.3.16
 ```
 
 On Windows, activate with `.venv\Scripts\activate` instead.

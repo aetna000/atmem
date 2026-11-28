@@ -1,6 +1,6 @@
 # Memory and evidence, under your control
 
-Stable [2.3.15](../releases/v2.3.15.md) adds opt-in governed RAG/MCP, verified feedback and experimental memory-policy studies.
+Stable [2.3.16](../releases/v2.3.16.md) adds source-checked agent handoffs and a dashboard replay of a corrected run.
 The installation examples below use the current stable package; optional feedback/study features require explicit setup.
 
 
@@ -13,12 +13,12 @@ and investigate the evidence a supported host captured.
 without an API key or a model download. Then [connect an agent](integrations.md)
 and review shadow mode before enabling context injection.
 
-## Stable 2.3.15: memory, context and evidence
+## Stable 2.3.16: memory, context and evidence
 
-AtMem 2.3.15 retains source-backed, read-only discovery for explicitly
+AtMem 2.3.16 retains source-backed, read-only discovery for explicitly
 configured SDK/host integrations. Start with the
 [integration guide](../evidence-discovery.md) and
-[release note](../releases/v2.3.15.md).
+[release note](../releases/v2.3.16.md).
 It does not automatically enable agent tools or change ordinary memory defaults.
 
 ## Shared coding memory
