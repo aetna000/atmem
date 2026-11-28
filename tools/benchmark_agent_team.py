@@ -7,6 +7,8 @@ import re
 from pathlib import Path
 from shutil import copyfile
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
+from hashlib import sha256
 
 from atmem import Memory
 from atmem.agent_team import run_agent_team
@@ -53,8 +55,9 @@ def grade(case, run):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--cases", type=Path, default=HERE / "cases.json")
     args = parser.parse_args()
-    cases = json.loads((HERE / "cases.json").read_text())
+    cases = json.loads(args.cases.read_text())
     agents = LocalAgents()
     agents.ensure_available()
     rows = []
@@ -73,13 +76,27 @@ def main():
                 copyfile(source, target)
                 memory = Memory(target, auto_vectors=False, allow_insecure_typed_development=True)
                 try:
-                    run = run_agent_team(memory, SCOPE, case["question"], policy=policy, agents=agents)
+                    typed_rows = []
+                    read = memory.store.typed_units_for_records
+
+                    def observed_rows(*args, **kwargs):
+                        found = read(*args, **kwargs)
+                        typed_rows.extend(row["record_id"] for row in found)
+                        return found
+
+                    with patch.object(memory.store, "typed_units_for_records", observed_rows), patch.object(
+                        memory.store, "get_protocol_source_by_id", wraps=memory.store.get_protocol_source_by_id
+                    ) as source_reads:
+                        run = run_agent_team(memory, SCOPE, case["question"], policy=policy, agents=agents)
+                    run["typed_rows_read"] = len(typed_rows)
+                    run["unique_typed_records_read"] = len(set(typed_rows))
+                    run["raw_source_fetches"] = source_reads.call_count
                 finally:
                     memory.close()
                 score = grade(case, run)
                 rows.append({"case_id": case["id"], "grade": score, "run": run})
                 print(case["id"], policy, run["outcome"], score["correct"], run["model_calls"], flush=True)
-    args.output.write_text(json.dumps({"model_digest": MODEL_DIGEST, "rows": rows}, indent=2) + "\n")
+    args.output.write_text(json.dumps({"model_digest": MODEL_DIGEST, "cases_sha256": sha256(args.cases.read_bytes()).hexdigest(), "rows": rows}, indent=2) + "\n")
 
 
 if __name__ == "__main__":

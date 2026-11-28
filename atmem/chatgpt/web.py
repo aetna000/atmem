@@ -87,6 +87,8 @@ class BoundaryMiddleware(BaseHTTPMiddleware):
 
 
 def install_routes(mcp,settings,repository,provider,identity,service):
+    from .team_tools import register
+    register(mcp, settings, repository)
     def csrf_form(request):
         # Visiting recovery in another tab must not invalidate the sign-in form.
         token=request.session.setdefault('csrf',secrets.token_urlsafe(32))

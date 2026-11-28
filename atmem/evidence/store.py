@@ -12,6 +12,7 @@ import sqlite3
 from typing import Any, Iterable
 import uuid
 from contextlib import contextmanager
+from itertools import chain
 
 from atmem.core.canonical import canonical_json
 from atmem.evidence.crypto import open_json, seal_json, unwrap_data_key, wrap_data_key
@@ -225,12 +226,23 @@ class EncryptedEvidenceStore:
                 bytes(row["ciphertext"]),
             )
 
-    def capture_mode(self) -> CaptureMode:
-        mode = CaptureMode.FULL
-        for document in self.documents():
-            if document.get("record_type") == "settings":
+    def capture_setting(self) -> tuple[CaptureMode, int]:
+        # Settings in pre-envelope-key vaults can lack a partition. Read those
+        # through the original decoder until key rotation migrates them.
+        legacy = self._conn.execute("SELECT 1 FROM sealed_objects WHERE slot_id IS NULL LIMIT 1").fetchone()
+        documents = self.documents() if legacy else chain(
+            self.documents(partition_id="settings"), self.documents(partition_id="vault")
+        )
+        mode, revision = CaptureMode.FULL, 0
+        for document in documents:
+            sequence = int(document.get("sequence", 0))
+            if document.get("record_type") == "settings" and sequence >= revision:
                 mode = CaptureMode(str(document.get("capture_mode") or CaptureMode.FULL.value))
-        return mode
+                revision = sequence
+        return mode, revision
+
+    def capture_mode(self) -> CaptureMode:
+        return self.capture_setting()[0]
 
     def set_capture_mode(self, mode: CaptureMode, *, actor: str) -> dict[str, Any]:
         return self.append(
@@ -310,6 +322,7 @@ class EncryptedEvidenceStore:
     def _delete_run(self, run_id: str) -> dict[str, int]:
         object_ids: list[str] = []
         tombstone = None
+        team_index = None
         for document in self.documents():
             if document.get("record_type") == "continuity_event" and document.get("workflow_id") == run_id:
                 object_ids.append(str(document["object_id"]))
@@ -325,8 +338,16 @@ class EncryptedEvidenceStore:
             if document.get("record_type") != "evidence":
                 continue
             envelope = document.get("envelope") or {}
-            if str(envelope.get("run_id") or "") == run_id:
+            indexed = (document.get("origin") == "agent-team-index-v1"
+                       and envelope.get("payload", {}).get("run_id") == run_id)
+            if indexed:
+                team_index = envelope
+            if indexed or str(envelope.get("run_id") or "") == run_id:
                 object_ids.append(str(document["object_id"]))
+        if team_index:
+            marker = {**team_index, "event_type":"team.deleted", "occurred_at":utc_now(), "payload":{"run_id":run_id}}
+            self.append({"record_type":"evidence", "origin":"agent-team-deleted-v1", "capture_mode":"metadata",
+                         "reconstructable":False, "envelope":marker}, partition_id="run:" + team_index["run_id"])
         if tombstone:
             self.append(tombstone, partition_id="continuity-tombstones")
         for object_id in object_ids:

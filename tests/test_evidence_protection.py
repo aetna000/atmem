@@ -98,6 +98,7 @@ def _record(manager: ControlPlaneManager, run_id: str = "run-secret") -> dict:
 def test_role_matrix_is_closed_and_plaintext_export_is_collector_only() -> None:
     target = EvidenceScope("local", "test-subject", run_id="run-1")
     expected = {
+        EvidenceRole.TEAM_HOST: set(),
         EvidenceRole.CONTINUITY_HOST: {EvidenceOperation.CONTINUITY},
         EvidenceRole.CONTINUITY_COORDINATOR: {EvidenceOperation.CONTINUITY},
         EvidenceRole.VIEWER: set(),

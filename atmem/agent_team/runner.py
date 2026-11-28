@@ -25,12 +25,12 @@ def _expired(timestamp: str) -> bool:
     return datetime.fromisoformat(timestamp.replace("Z", "+00:00")) <= _now()
 
 
-def _lookup(memory, scope, question, broad):
+def _lookup(memory, scope, question, broad, *, egress="local"):
     limit = 16 if broad else 4
     candidates = memory.eligible_candidates(RecallRequest(
         request_id="recall_" + uuid4().hex, scope=scope, query=question, limit=limit,
         candidate_limit=64 if broad else 24, signals=("lexical", "graph"),
-        retrieval_strategy="core-rrf-v1", egress_class="local",
+        retrieval_strategy="core-rrf-v1", egress_class=egress,
     ))
     package = memory.prepare_context_v2(ContextRequestV2(
         context_id="ctx_" + uuid4().hex, scope=scope, query=question,
@@ -58,7 +58,7 @@ def _supporting_text(package) -> dict[str, str]:
 
 
 def run_agent_team(memory: Memory, scope: AuthorityScope, question: str, *,
-                   policy: str = "adaptive", max_calls: int = 2,
+                   policy: str = "single", max_calls: int = 2,
                    agents: LocalAgents | None = None,
                    check_authority: Callable[[], None] | None = None) -> dict:
     """Answer an extractive question. The caller owns the local memory authority.
@@ -86,14 +86,16 @@ def run_agent_team(memory: Memory, scope: AuthorityScope, question: str, *,
     }
 
     def step(role, start, **fields):
-        row = {"role": role, "elapsed_ms": round((monotonic() - start) * 1000), **fields}
+        row = {"step_id": f"{run_id}.{len(steps) + 1}", "parent_step_id": steps[-1]["step_id"] if steps else None,
+               "host": "atmem-sdk", "agent_id": scope.agent_id, "role": role,
+               "elapsed_ms": round((monotonic() - start) * 1000), **fields}
         steps.append(row)
         return row
 
     def finish(outcome, reason):
         if package is not None and any("evidence" in row for row in steps) and not current(package):
             for row in steps:
-                for key in ("evidence", "quote", "source_ids"):
+                for key in ("evidence", "quote", "source_ids", "provenance"):
                     row.pop(key, None)
             report.update(answer=None, source_ids=[])
             outcome, reason = "abstained", "Evidence expired or changed during the run."
@@ -126,7 +128,9 @@ def run_agent_team(memory: Memory, scope: AuthorityScope, question: str, *,
              reason="Expanded search in the same workspace." if broad else "Scoped memory lookup.",
              candidates=count, limit=limit, context_bytes=len(package.context.encode()),
              source_ids=list(package.source_ids), missing=list(package.sufficiency.missing_slots),
-             reason_codes=list(package.sufficiency.reason_codes), preparation_id=package.preparation_id)
+             reason_codes=list(package.sufficiency.reason_codes), preparation_id=package.preparation_id,
+             generation=package.generation, context_sha256=package.context_sha256,
+             provenance=list(package.provenance))
         return package, count >= limit
 
     def ask(role, payload, reason):
@@ -200,9 +204,9 @@ def run_agent_team(memory: Memory, scope: AuthorityScope, question: str, *,
             steps[-1]["status"] = "withheld"
             return finish("abstained", "The agent returned no matching quote from a supporting memory.")
         entries, payload = matches, quote
-        steps[-1]["source_ids"] = list(dict.fromkeys(
-            row["source_id"] for row in package.provenance if row["record_id"] in entries
-        ))
+        refs = [row for row in package.provenance if row["record_id"] in entries]
+        steps[-1].update(provenance=refs, generation=package.generation, preparation_id=package.preparation_id)
+        steps[-1]["source_ids"] = list(dict.fromkeys(row["source_id"] for row in refs))
         if not steps[-1]["source_ids"]:
             return finish("abstained", "The selected quote has no source reference.")
     if not current(package):

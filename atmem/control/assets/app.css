@@ -677,3 +677,21 @@ pre.jsonlog{max-width:100%;box-sizing:border-box;margin:8px 0;padding:16px;overf
 .team-comparison caption{text-align:left;font-size:14px;font-weight:700;margin-bottom:6px}
 .team-comparison th,.team-comparison td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
 .team-comparison thead th{font-weight:600;color:var(--muted);background:var(--bg)}
+
+.team-project {margin:12px 0;min-width:0}
+.team-project .team-controls {align-items:end;flex-wrap:wrap}
+.team-project #teamAttach {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px}
+.team-project input {min-width:0;max-width:100%}
+.team-project details {margin:14px 0}
+.team-project table {width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}
+.team-project caption {text-align:left;font-weight:650;padding:8px 0}
+.team-project td,.team-project th {padding:8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.team-project td button {white-space:normal;text-align:left}
+.team-digest {display:block;font-family:monospace;overflow-wrap:anywhere;color:var(--muted);max-width:28ch}
+.team-facts dd {overflow-wrap:anywhere}
+#teamForm[hidden],#teamHistory[hidden],#teamResults[hidden],#teamAttachPanel[hidden] {display:none}
+@media(max-width:650px){.team-project table{font-size:11px}.team-project td,.team-project th{padding:5px 3px}.team-project button{font-size:12px}.team-modes{flex-wrap:wrap}}
+.team-controls label[hidden],#teamRerun[hidden] {display:none}
+.team-project summary {cursor:pointer;font-weight:600}
+.team-project .team-caption {align-items:center}
+.team-project #teamOutcomeList table td:nth-child(2) {font-variant-numeric:tabular-nums}

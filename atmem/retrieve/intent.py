@@ -55,6 +55,10 @@ _STOP = frozenset(
     "a an am and are can could did do does for from how i in is it its like me my of on or our should the this to was what when where which who why with would you your".split()
 )
 _TOKEN = re.compile(r"[^\W_]+", re.UNICODE)
+# Personal atomic facts are formed as (user, full field name, value).
+_PERSONAL_FIELD = re.compile(
+    r"(?:what|which) is my (?:current |latest )?([\w-]+(?: [\w-]+){0,5})", re.I
+)
 _RELATIONS = frozenset({
     "age", "height", "location", "food", "city", "status", "model",
     "configuration", "name", "email", "channel", "procedure", "color",
@@ -549,6 +553,11 @@ def _obligations(
         # not evidence that the requested fact is about the speaker. Reserve
         # the user entity for direct personal predicates; otherwise arbitrary
         # UI questions acquire a bogus user obligation.
+        field = _PERSONAL_FIELD.fullmatch(clause.strip()) if need_type in {"exact_fact", "current_state"} else None
+        if field and not temporal_target:
+            terms = field.group(1).casefold().split()
+            if not any(term in {"in", "at", "for", "with", "when", "from", "of", "not", "or"} for term in terms):
+                relation = " ".join(_ALIASED_RELATIONS.get(term, term) for term in terms)
         personal_predicate = bool(
             relation
             and (

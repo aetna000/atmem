@@ -62,6 +62,7 @@
         <label><span>Repeat new password</span><span class="passwordinput"><input id="repeatPassword" type="password" autocomplete="new-password" required><button type="button" data-password-toggle="repeatPassword" aria-label="Show repeated password" aria-pressed="false">Show</button></span></label>
         <button class="primary" type="submit">Change password</button>
       </form>
+      <p class="authhelp"><a href="/assets/team-project-example.png">Preview a recorded agent handoff</a></p>
       <p class="authhelp">First install? Run <code>atmem init</code>. It opens this form with the one-time Administrator password pre-filled.</p>
       <p class="authhelp">Missed or lost it? Run <code>atmem users recover-administrator</code> in the local terminal. AtMem creates a new temporary password; it cannot reveal the old one.</p>
     </div>
@@ -339,7 +340,8 @@
       <div><h2 id="teamTitle">Agent handoffs</h2><p class="sub">Follow a question from scoped memory to its answer.</p></div>
       <div class="team-modes" aria-label="Run source" role="group">
         <button type="button" id="teamExamples" aria-pressed="true">Recorded examples</button>
-        <button type="button" id="teamLive" aria-pressed="false">My workspace</button>
+        <button type="button" id="teamLive" aria-pressed="false">Run locally</button>
+        <button type="button" id="teamProject" aria-pressed="false">Project runs</button>
       </div>
     </header>
     <form id="teamForm" class="team-controls">
@@ -351,6 +353,14 @@
       <label id="teamBudgetLabel" hidden>Call limit<select id="teamBudget"><option value="2">2 calls</option><option value="1">1 call</option></select></label>
       <button class="primary" id="teamSubmit" type="submit" hidden>Run locally</button>
     </form>
+    <section id="teamHistory" class="team-project" hidden aria-label="Project run history">
+      <form id="teamHistorySearch" class="team-controls">
+        <label>Outcome reference<input type="search" id="teamFilter" maxlength="300" placeholder="Test, incident, ticket or pull request"></label>
+        <button type="submit" class="secondary">Find runs</button>
+      </form>
+      <div class="team-comparison" id="teamRunList"></div>
+      <button type="button" class="secondary" id="teamMore" hidden>More runs</button>
+    </section>
     <p id="teamNotice" class="sub" role="status"></p>
     <div id="teamTrace" hidden>
       <div class="team-result"><div><div id="teamOutcome" class="team-outcome"></div><h3 id="teamAnswer"></h3><p id="teamReason"></p></div>
@@ -364,6 +374,22 @@
         <div class="team-caption"><h3 id="teamStepTitle">Step details</h3><span id="teamStepTiming"></span></div>
         <p id="teamStepReason"></p><dl id="teamStepFacts" class="team-facts"></dl>
         <details id="teamPayload" hidden><summary id="teamEvidenceLabel">Evidence delivered to this agent</summary><pre id="teamEvidence"></pre><p id="teamReceipt" hidden></p></details>
+      </section>
+      <section id="teamResults" class="team-project" hidden aria-label="Linked engineering outcomes">
+        <div class="team-caption"><h3>Engineering outcomes</h3><button type="button" class="secondary" id="teamRerun">Rerun with a local reader</button></div>
+        <div id="teamOutcomeList"></div>
+        <details id="teamAttachPanel"><summary>Attach an outcome to the selected step</summary>
+          <form id="teamAttach" class="team-controls">
+            <label>Kind<select id="teamKind"><option value="test">Test</option><option value="ticket">Ticket</option><option value="pull_request">Pull request</option><option value="incident">Incident</option></select></label>
+            <label>Reference<input id="teamReference" required maxlength="300"></label>
+            <label>Reported status<input id="teamState" maxlength="48" placeholder="e.g. resolved"></label>
+            <label>Source URL (optional)<input id="teamURL" type="url" placeholder="https://"></label>
+            <label>JUnit report (optional)<input id="teamFile" type="file" accept=".xml,application/xml,text/xml"></label>
+            <label>JUnit class<input id="teamClass" maxlength="300"></label>
+            <label>JUnit test name<input id="teamTestName" maxlength="300"></label>
+            <button type="submit" class="primary">Attach to step</button>
+          </form>
+        </details>
       </section>
       <p id="teamMetadata" class="team-metadata"></p>
       <div id="teamComparison" class="team-comparison" hidden></div>

@@ -49,18 +49,18 @@ class Agents:
 
 def test_adaptive_direct_then_crowded_review_then_budget_stop(memory):
     agents = Agents()
-    direct = run_agent_team(memory, SCOPE, QUESTION, agents=agents)
+    direct = run_agent_team(memory, SCOPE, QUESTION, policy="adaptive", agents=agents)
     assert direct["answer"] == "Tallinn" and direct["model_calls"] == 1 and direct["lookups"] == 1
     for text in ("My favorite food is soba.", "My favorite color is lilac.",
                  "My favorite animal is rabbit.", "My favorite sport is tennis."):
         add(memory, text)
     agents.inputs.clear()
-    reviewed = run_agent_team(memory, SCOPE, QUESTION, agents=agents)
+    reviewed = run_agent_team(memory, SCOPE, QUESTION, policy="adaptive", agents=agents)
     assert [s["role"] for s in reviewed["steps"]] == ["lookup", "expanded_lookup", "reviewer", "reader"]
     assert agents.inputs[1] == ("reader", "Tallinn") and reviewed["answer"] == "Tallinn"
     assert reviewed["source_ids"] and reviewed["steps"][2]["receipt_id"]
     assert reviewed["input_tokens"] == 48 and reviewed["output_tokens"] == 6
-    stopped = run_agent_team(memory, SCOPE, QUESTION, max_calls=1, agents=agents)
+    stopped = run_agent_team(memory, SCOPE, QUESTION, max_calls=1, policy="adaptive", agents=agents)
     assert stopped["outcome"] == "abstained" and stopped["model_calls"] == 0
     assert len(agents.inputs) == 2
 

@@ -68,3 +68,11 @@ def test_memory_exposes_one_host_neutral_analysis_boundary():
         assert result["budget"]["format"] == "atmem-retrieval-budget-v1"
     finally:
         memory.close()
+
+
+def test_multiterm_personal_field_is_one_obligation_and_preserves_temporal_queries():
+    need = route_information_need("What is my Atlas routing code?")
+    assert need.obligations == ({"entity":"user","relation":"atlas routing code"},)
+    assert not route_information_need("What is my routing code for Atlas?").obligations
+    assert route_information_need("What is my status in 2020?").obligations == (
+        {"entity":"user","relation":"status","temporal_target":"2020"},)
