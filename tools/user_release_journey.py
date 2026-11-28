@@ -17,7 +17,7 @@ import sys
 import time
 import urllib.request
 
-EXPECTED = "2.3.16b3"
+EXPECTED = "2.3.16"
 
 
 def main():

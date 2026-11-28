@@ -1,12 +1,11 @@
 # AtMem
 
-[AtMem 2.3.16b3 beta](docs/releases/v2.3.16b3.md) adds opt-in duplicate-read context reduction for the Python SDK.
+[![Version 2.3.16](https://img.shields.io/badge/version-2.3.16-blue)](./docs/releases/v2.3.16.md)
 
-[![Version 2.3.16b3](https://img.shields.io/badge/version-2.3.16b3-blue)](./docs/releases/v2.3.16b3.md)
+**AtMem 2.3.16 adds cross-agent memory handoffs and source-linked test results.** OpenClaw can hand a question to Hermes. Hermes checks its own access and the current memory revision before using the evidence. In the dashboard, open **Sessions → Agent handoffs → Recorded examples** to see the original answer fail a test and the corrected answer pass it.
 
-> **AtMem 2.3.15** brings scoped document retrieval and MCP, inspectable action outcomes, and bounded memory-policy studies into the stable package.
-> Install: `python -m pip install --upgrade atmem==2.3.15`.
-> Read the [release note](./docs/releases/v2.3.15.md) for opt-ins, compatibility and backup requirements.
+The single reader scored 10/10 on ten frozen synthetic tasks. Adaptive review also scored 10/10 and used more tokens, so review stays opt-in. [Measurements](specs/058-portable-agent-runs/results.md) · [Host setup](specs/058-portable-agent-runs/quickstart.md) · [Release notes](docs/releases/v2.3.16.md)
+
 > Core memory and context defaults are preserved. Studies remain experimental: no reliable learning or production-policy qualification is claimed.
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
@@ -34,15 +33,15 @@ Experimental [measured memory adaptation](docs/measured-memory-adaptation.md) co
 
 ## Start here
 
-These commands install **2.3.16b3**. Read the
-[beta release note](docs/releases/v2.3.16b3.md) for compatibility and opt-ins.
+These commands install **2.3.16**. Read the
+[release note](docs/releases/v2.3.16.md) for compatibility and opt-ins.
 Installation does not automatically enable the new RAG/feedback services or
 qualify a learning policy.
 
 ### 1. Install AtMem and choose memory intelligence
 
 ```bash
-python -m pip install --upgrade atmem==2.3.16b3
+python -m pip install --upgrade atmem==2.3.16
 atmem atbot setup
 atmem atbot doctor
 atmem init
@@ -103,7 +102,7 @@ package yourself.
 Already using AtMem 2.1 with OpenClaw? Upgrade in place:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.16b3
+python -m pip install --upgrade atmem==2.3.16
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -126,7 +125,7 @@ selected by `python`, rather than an unrelated `pip` executable on `PATH`.
 #### Pydantic AI — native capability
 
 ```bash
-python -m pip install 'atmem[pydantic-ai]==2.3.16b3'
+python -m pip install 'atmem[pydantic-ai]==2.3.16'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -151,7 +150,7 @@ agent = Agent("openai:gpt-5-mini", capabilities=[memory])
 #### LangChain/LangGraph — native middleware
 
 ```bash
-python -m pip install 'atmem[langgraph]==2.3.16b3'
+python -m pip install 'atmem[langgraph]==2.3.16'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -319,7 +318,7 @@ and restores it exactly.
 ## Installation details
 
 ```bash
-python -m pip install atmem==2.3.15
+python -m pip install atmem==2.3.16
 atmem --version
 ```
 
@@ -329,7 +328,7 @@ embedding model, while the semantic extra adds local sentence-transformer
 choices:
 
 ```bash
-python -m pip install 'atmem[semantic]==2.3.15'
+python -m pip install 'atmem[semantic]==2.3.16'
 ```
 
 For repository development, install both workspace packages:
@@ -517,7 +516,7 @@ atmem control restore
 Existing 2.1 installations upgrade without starting a new migration:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.15
+python -m pip install --upgrade atmem==2.3.16
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -751,9 +750,9 @@ npm test
 npm run smoke
 ```
 
-This stable release is **2.3.15**, with OpenClaw bridge **2.3.15**,
+This stable release is **2.3.16**, with OpenClaw bridge **2.3.16**,
 legacy AtBot companion **0.1.1**, and AtFlows **0.1.8**.
-Use the [stable release note](docs/releases/v2.3.15.md) for install/upgrade commands,
+Use the [stable release note](docs/releases/v2.3.16.md) for install/upgrade commands,
 compatibility, research opt-ins and limits.
 The final [self-tested DolphinBench result](https://huggingface.co/datasets/atmem/dolphinbench-routed-v4-20261101)
 is **479/600 (79.83%)**, against its frozen i3/routed-v4 research artifact and
