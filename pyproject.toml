@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atmem"
-version = "2.3.16b3"
+version = "2.3.16"
 description = "Host-neutral Agent Black Box and reversible memory control plane."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -33,6 +33,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+team-mcp = ["mcp==1.30.0"]
 chatgpt = [
   "mcp==1.30.0",
   "uvicorn>=0.35,<1",
@@ -133,7 +134,7 @@ include = ["atmem*"]
 [tool.setuptools.package-data]
 "atmem.chatgpt" = ["assets/*.css", "assets/*.svg", "assets/*.js"]
 "atmem.adapters.hermes" = ["assets/*.py"]
-"atmem.control" = ["assets/*.jpg", "assets/*.html", "assets/*.css", "assets/*.js", "assets/fonts/*.woff2", "assets/fonts/*.txt"]
+"atmem.control" = ["assets/team-examples.json", "assets/team-project-example.json", "assets/team-project-example.png", "assets/*.jpg", "assets/*.html", "assets/*.css", "assets/*.js", "assets/fonts/*.woff2", "assets/fonts/*.txt"]
 "atmem.schemas" = ["v1/*.json", "v2/*.json"]
 "atmem.contracts" = ["continuity-event-v1.json"]
 "atmem.retrieve" = ["*.json"]

@@ -1,0 +1,8 @@
+[
+  {"id":"direct","question":"What is my favorite city?","facts":["My favorite city is Lisbon."],"answer":"Lisbon"},
+  {"id":"corrected","question":"What is my current favorite food?","facts":["My favorite food is rice.","My favorite food is polenta."],"answer":"polenta","stale":["rice"]},
+  {"id":"busy","question":"What is my Atlas routing code?","facts":["My Atlas tracking code is AX-301.","My Atlas support code is AX-412.","My Atlas backup code is AX-523.","My Atlas release code is AX-634.","My Atlas routing code is AX-745."],"answer":"AX-745"},
+  {"id":"expired","question":"What is my favorite city?","facts":["My favorite city is Oslo."],"valid_until":"2020-06-01T00:00:00Z","answer":null,"stale":["Oslo"]},
+  {"id":"conflict","question":"What is my favorite city?","facts":["My favorite city is Kyoto.","My favorite city is Lima."],"unkeyed":true,"answer":null},
+  {"id":"missing","question":"What is my routing code?","facts":[],"answer":null}
+]

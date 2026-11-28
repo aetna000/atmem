@@ -4,13 +4,14 @@ The dashboard has no external assets or JavaScript dependencies. It presents
 the customer decisions that matter: inspect evidence, review memory, activate
 AtMem, or return safely to the adapter's prior state.
 
-The served page is assembled from three package assets so markup, styling,
+The served page is assembled from package assets so markup, styling,
 and behavior can be edited as ordinary files while the HTTP surface keeps
 serving one self-contained document:
 
     assets/app.html   page shell and markup
     assets/app.css    stylesheet, inlined at the CSS token
-    assets/app.js     application script, inlined at the JS token
+    assets/app.js          application script, inlined at the JS token
+    assets/agent-team.js   agent handoffs within the application closure
 """
 
 from importlib.resources import files
@@ -28,7 +29,11 @@ def _asset(name: str) -> str:
 def build_app_html() -> str:
     """Assemble the single served dashboard document from package assets."""
     shell = _asset("app.html")
-    for token, name in ((_STYLE_TOKEN, "app.css"), (_SCRIPT_TOKEN, "app.js")):
+    for token, name in (
+        (_STYLE_TOKEN, "app.css"),
+        (_SCRIPT_TOKEN, "app.js"),
+        ("/*==ATMEM_TEAM_JS==*/\n", "agent-team.js"),
+    ):
         if token not in shell:
             raise ValueError(f"dashboard shell is missing {token.strip()!r}")
         shell = shell.replace(token, _asset(name), 1)

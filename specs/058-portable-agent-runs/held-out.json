@@ -1,0 +1,12 @@
+[
+  {"id":"owner-update","question":"What is my current Juniper release owner?","facts":["My Juniper release owner is Inez.","My Juniper release owner is Ravi."],"answer":"Ravi","stale":["Inez"]},
+  {"id":"two-projects","question":"What is my Selene release owner?","facts":["My Solara release owner is Mara.","My Selene release owner is Theo."],"answer":"Theo"},
+  {"id":"identifier-update","question":"What is my Boreal dispatch code?","facts":["My Boreal dispatch code is BR-227.","My Boreal dispatch code is BR-814."],"answer":"BR-814","stale":["BR-227"]},
+  {"id":"crowded-routing","question":"What is my Sable dispatch code?","facts":["My Sable return code is SA-113.","My Sable claim code is SA-420.","My Sable dispatch code is SA-784.","My Sable support code is SA-908.","My Sable tracking code is SA-317.","My Sable backup code is SA-512."],"answer":"SA-784"},
+  {"id":"crowded-preference","question":"What is my favorite city?","facts":["My favorite food is ramen.","My favorite city is Bergen.","My favorite sport is squash.","My favorite animal is otter.","My favorite color is coral."],"answer":"Bergen"},
+  {"id":"simple-assignment","question":"What is my release owner?","facts":["My release owner is Anika."],"answer":"Anika"},
+  {"id":"competing-assignments","question":"What is my Cedar build owner?","facts":["My Cedar build owner is Emil.","My Cedar build owner is Lora."],"unkeyed":true,"answer":null},
+  {"id":"expired-assignment","question":"What is my Vela incident owner?","facts":["My Vela incident owner is Selma."],"valid_until":"2020-05-01T00:00:00Z","answer":null,"stale":["Selma"]},
+  {"id":"similar-name-missing","question":"What is my Nacre routing code?","facts":["My Nara routing code is NA-188.","My Nacre filing code is NC-991."],"answer":null},
+  {"id":"no-assignment","question":"What is my Lumen release owner?","facts":[],"answer":null}
+]

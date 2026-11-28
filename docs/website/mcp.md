@@ -1,6 +1,6 @@
 # MCP profiles
 
-Stable [2.3.15](../releases/v2.3.15.md) adds opt-in governed RAG/MCP, verified feedback and experimental memory-policy studies.
+Stable [2.3.16](../releases/v2.3.16.md) adds source-checked agent handoffs and a dashboard replay of a corrected run.
 The installation examples below use the current stable package; optional feedback/study features require explicit setup.
 
 

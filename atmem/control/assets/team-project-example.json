@@ -1,0 +1,454 @@
+{
+  "original": {
+    "answer": "AX-100",
+    "elapsed_ms": 14700,
+    "input_tokens": 183,
+    "lookups": null,
+    "max_calls": null,
+    "model": "qwen2.5:1.5b",
+    "model_calls": 2,
+    "outcome": "answered",
+    "output_tokens": 29,
+    "policy": "portable",
+    "question": "What is my Atlas routing code?",
+    "reader_model": "qwen2.5:1.5b",
+    "reason": "Recipient returned a source-linked quote.",
+    "rerun_of": null,
+    "run_id": "team_c2a22f30f1d592f930c9394eb98450ec",
+    "scope": {
+      "agent_id": "dispatcher",
+      "format": "atmem-authority-scope-v1",
+      "subject_id": "local-user",
+      "workspace_id": "ws_3ee488e4c874b72f"
+    },
+    "source_ids": [
+      "routing-v1"
+    ],
+    "started_at": "2026-11-28T11:19:14.222741+00:00",
+    "steps": [
+      {
+        "agent_id": "dispatcher",
+        "generation": 1,
+        "host": "openclaw",
+        "occurred_at": "2026-11-28T11:19:14.222772+00:00",
+        "parent_step_id": null,
+        "preparation_id": "prep_3804feaa2d55455aae1f370d98958f04",
+        "provenance": [
+          {
+            "end_offset": 32,
+            "excerpt_sha256": "sha256:3981f95b926413c6d2a02aa56b229f7b353f047f9e1bdfd8a0bb2d54a0e34da0",
+            "record_id": "rec_b5f0e3ca648e49f09a7ee45d627b5421",
+            "source_id": "routing-v1",
+            "start_offset": 0
+          }
+        ],
+        "reason": "Waiting for the designated recipient.",
+        "role": "offer",
+        "source_ids": [
+          "routing-v1"
+        ],
+        "status": "sufficient",
+        "step_id": "team_c2a22f30f1d592f930c9394eb98450ec.1"
+      },
+      {
+        "agent_id": "dispatcher",
+        "evidence_sha256": "1b11030a719ffbd2d6109aa6efb71124483516eb02033b883307ea5e451fdf67",
+        "generation": 1,
+        "host": "openclaw",
+        "input_tokens": 89,
+        "model": "qwen2.5:1.5b",
+        "model_calls": 1,
+        "occurred_at": "2026-11-28T11:19:14.222856+00:00",
+        "output_tokens": 18,
+        "parent_step_id": "team_c2a22f30f1d592f930c9394eb98450ec.1",
+        "passages": [
+          {
+            "record_id": "rec_b5f0e3ca648e49f09a7ee45d627b5421",
+            "text": "user Atlas routing code: AX-100 (positive)"
+          }
+        ],
+        "provenance": [
+          {
+            "end_offset": 32,
+            "excerpt_sha256": "sha256:3981f95b926413c6d2a02aa56b229f7b353f047f9e1bdfd8a0bb2d54a0e34da0",
+            "record_id": "rec_b5f0e3ca648e49f09a7ee45d627b5421",
+            "source_id": "routing-v1",
+            "start_offset": 0
+          }
+        ],
+        "quote": "Atlas routing code: AX-100 (positive)",
+        "reason": "Sender selected an exact source quotation.",
+        "role": "reviewer",
+        "status": "returned",
+        "step_id": "team_c2a22f30f1d592f930c9394eb98450ec.2",
+        "usage_source": "host_reported"
+      },
+      {
+        "agent_id": "reviewer",
+        "evidence_sha256": "1b11030a719ffbd2d6109aa6efb71124483516eb02033b883307ea5e451fdf67",
+        "generation": 1,
+        "host": "hermes",
+        "occurred_at": "2026-11-28T11:19:22.812183+00:00",
+        "parent_step_id": "team_c2a22f30f1d592f930c9394eb98450ec.2",
+        "passages": [
+          {
+            "record_id": "rec_b5f0e3ca648e49f09a7ee45d627b5421",
+            "text": "user Atlas routing code: AX-100 (positive)"
+          }
+        ],
+        "preparation_id": "prep_acc58c8a519b482da5bb5b41bbbec2db",
+        "provenance": [
+          {
+            "end_offset": 32,
+            "excerpt_sha256": "sha256:3981f95b926413c6d2a02aa56b229f7b353f047f9e1bdfd8a0bb2d54a0e34da0",
+            "record_id": "rec_b5f0e3ca648e49f09a7ee45d627b5421",
+            "source_id": "routing-v1",
+            "start_offset": 0
+          }
+        ],
+        "reason": "Recipient independently verified the same source spans.",
+        "receipt_id": "delivery_ec9a8797db37f32ebfd287672790fa9b",
+        "role": "receive",
+        "source_ids": [
+          "routing-v1"
+        ],
+        "status": "delivered",
+        "step_id": "team_c2a22f30f1d592f930c9394eb98450ec.3"
+      },
+      {
+        "agent_id": "reviewer",
+        "estimated_reader_cost_microusd": null,
+        "generation": 1,
+        "host": "hermes",
+        "input_tokens": 94,
+        "model": "qwen2.5:1.5b",
+        "model_calls": 1,
+        "occurred_at": "2026-11-28T11:19:28.922842+00:00",
+        "output_tokens": 11,
+        "parent_step_id": "team_c2a22f30f1d592f930c9394eb98450ec.3",
+        "provenance": [
+          {
+            "end_offset": 32,
+            "excerpt_sha256": "sha256:3981f95b926413c6d2a02aa56b229f7b353f047f9e1bdfd8a0bb2d54a0e34da0",
+            "record_id": "rec_b5f0e3ca648e49f09a7ee45d627b5421",
+            "source_id": "routing-v1",
+            "start_offset": 0
+          }
+        ],
+        "quote": "AX-100",
+        "reader_cost_delta_microusd": null,
+        "reason": "Recipient returned a source-linked quote.",
+        "receipt_id": "delivery_ec9a8797db37f32ebfd287672790fa9b",
+        "reported_reader_cost_microusd": null,
+        "role": "complete",
+        "source_ids": [
+          "routing-v1"
+        ],
+        "status": "returned",
+        "step_id": "team_c2a22f30f1d592f930c9394eb98450ec.4",
+        "usage_source": "host_reported"
+      }
+    ],
+    "usage_complete": true,
+    "outcomes": [
+      {
+        "kind": "test",
+        "reference": "test_route.test_route",
+        "step_id": "team_c2a22f30f1d592f930c9394eb98450ec.4",
+        "url": "",
+        "status": "failed",
+        "verification": "imported_junit",
+        "classname": "test_route",
+        "test_name": "test_route",
+        "report_sha256": "edfa6f4e2c5e2e567ee20a785edc7d954847ac4a939a76c15d37e9150006326c",
+        "outcome_id": "result_799d6ad00a96f64b87de5bc29137c285",
+        "recorded_by": "project-owner",
+        "recorded_at": "2026-11-28T11:19:31.133472+00:00"
+      }
+    ],
+    "cost_microusd": null,
+    "estimated_reader_cost_microusd": null,
+    "reader_cost_delta_microusd": null,
+    "reported_reader_cost_microusd": null,
+    "usage_source": "host_reported"
+  },
+  "corrected": {
+    "answer": "AX-745",
+    "elapsed_ms": 13610,
+    "input_tokens": 180,
+    "lookups": null,
+    "max_calls": null,
+    "model": "qwen2.5:1.5b",
+    "model_calls": 2,
+    "outcome": "answered",
+    "output_tokens": 26,
+    "policy": "portable",
+    "question": "What is my Atlas routing code?",
+    "reader_model": "qwen2.5:1.5b",
+    "reason": "Recipient returned a source-linked quote.",
+    "rerun_of": "team_c2a22f30f1d592f930c9394eb98450ec",
+    "run_id": "team_0a48105c2cdd52526c0f1a656b9a641d",
+    "scope": {
+      "agent_id": "dispatcher",
+      "format": "atmem-authority-scope-v1",
+      "subject_id": "local-user",
+      "workspace_id": "ws_3ee488e4c874b72f"
+    },
+    "source_ids": [
+      "routing-v2"
+    ],
+    "started_at": "2026-11-28T11:19:51.151771+00:00",
+    "steps": [
+      {
+        "agent_id": "dispatcher",
+        "generation": 4,
+        "host": "openclaw",
+        "occurred_at": "2026-11-28T11:19:51.151893+00:00",
+        "parent_step_id": null,
+        "preparation_id": "prep_257d5df76c9f4b76acac8231f4d37c01",
+        "provenance": [
+          {
+            "end_offset": 32,
+            "excerpt_sha256": "sha256:bc24d1c5f1974f33ba25a297b756cda6d3144ec42ff7a0310f598c4d46f685f0",
+            "record_id": "rec_a3e44b5dfa6f47c994a7449f2bb7cec6",
+            "source_id": "routing-v2",
+            "start_offset": 0
+          }
+        ],
+        "reason": "Waiting for the designated recipient.",
+        "role": "offer",
+        "source_ids": [
+          "routing-v2"
+        ],
+        "status": "sufficient",
+        "step_id": "team_0a48105c2cdd52526c0f1a656b9a641d.1"
+      },
+      {
+        "agent_id": "dispatcher",
+        "evidence_sha256": "05d08e69cfa9d77e187bdced4e0ce8ebc81602fad19abf2180ab27018f8e699e",
+        "generation": 4,
+        "host": "openclaw",
+        "input_tokens": 89,
+        "model": "qwen2.5:1.5b",
+        "model_calls": 1,
+        "occurred_at": "2026-11-28T11:19:51.153057+00:00",
+        "output_tokens": 15,
+        "parent_step_id": "team_0a48105c2cdd52526c0f1a656b9a641d.1",
+        "passages": [
+          {
+            "record_id": "rec_a3e44b5dfa6f47c994a7449f2bb7cec6",
+            "text": "user Atlas routing code: AX-745 (positive)"
+          }
+        ],
+        "provenance": [
+          {
+            "end_offset": 32,
+            "excerpt_sha256": "sha256:bc24d1c5f1974f33ba25a297b756cda6d3144ec42ff7a0310f598c4d46f685f0",
+            "record_id": "rec_a3e44b5dfa6f47c994a7449f2bb7cec6",
+            "source_id": "routing-v2",
+            "start_offset": 0
+          }
+        ],
+        "quote": "Atlas routing code: AX-745",
+        "reason": "Sender selected an exact source quotation.",
+        "role": "reviewer",
+        "status": "returned",
+        "step_id": "team_0a48105c2cdd52526c0f1a656b9a641d.2",
+        "usage_source": "host_reported"
+      },
+      {
+        "agent_id": "reviewer",
+        "evidence_sha256": "05d08e69cfa9d77e187bdced4e0ce8ebc81602fad19abf2180ab27018f8e699e",
+        "generation": 4,
+        "host": "hermes",
+        "occurred_at": "2026-11-28T11:19:57.777126+00:00",
+        "parent_step_id": "team_0a48105c2cdd52526c0f1a656b9a641d.2",
+        "passages": [
+          {
+            "record_id": "rec_a3e44b5dfa6f47c994a7449f2bb7cec6",
+            "text": "user Atlas routing code: AX-745 (positive)"
+          }
+        ],
+        "preparation_id": "prep_28b8e68635c94713969a9e93a08e4be8",
+        "provenance": [
+          {
+            "end_offset": 32,
+            "excerpt_sha256": "sha256:bc24d1c5f1974f33ba25a297b756cda6d3144ec42ff7a0310f598c4d46f685f0",
+            "record_id": "rec_a3e44b5dfa6f47c994a7449f2bb7cec6",
+            "source_id": "routing-v2",
+            "start_offset": 0
+          }
+        ],
+        "reason": "Recipient independently verified the same source spans.",
+        "receipt_id": "delivery_375b06d72b84d4fde981a1ce28c4d1c4",
+        "role": "receive",
+        "source_ids": [
+          "routing-v2"
+        ],
+        "status": "delivered",
+        "step_id": "team_0a48105c2cdd52526c0f1a656b9a641d.3"
+      },
+      {
+        "agent_id": "reviewer",
+        "estimated_reader_cost_microusd": null,
+        "generation": 4,
+        "host": "hermes",
+        "input_tokens": 91,
+        "model": "qwen2.5:1.5b",
+        "model_calls": 1,
+        "occurred_at": "2026-11-28T11:20:04.761803+00:00",
+        "output_tokens": 11,
+        "parent_step_id": "team_0a48105c2cdd52526c0f1a656b9a641d.3",
+        "provenance": [
+          {
+            "end_offset": 32,
+            "excerpt_sha256": "sha256:bc24d1c5f1974f33ba25a297b756cda6d3144ec42ff7a0310f598c4d46f685f0",
+            "record_id": "rec_a3e44b5dfa6f47c994a7449f2bb7cec6",
+            "source_id": "routing-v2",
+            "start_offset": 0
+          }
+        ],
+        "quote": "AX-745",
+        "reader_cost_delta_microusd": null,
+        "reason": "Recipient returned a source-linked quote.",
+        "receipt_id": "delivery_375b06d72b84d4fde981a1ce28c4d1c4",
+        "reported_reader_cost_microusd": null,
+        "role": "complete",
+        "source_ids": [
+          "routing-v2"
+        ],
+        "status": "returned",
+        "step_id": "team_0a48105c2cdd52526c0f1a656b9a641d.4",
+        "usage_source": "host_reported"
+      }
+    ],
+    "usage_complete": true,
+    "outcomes": [
+      {
+        "kind": "test",
+        "reference": "test_route.test_route",
+        "step_id": "team_0a48105c2cdd52526c0f1a656b9a641d.4",
+        "url": "",
+        "status": "passed",
+        "verification": "imported_junit",
+        "classname": "test_route",
+        "test_name": "test_route",
+        "report_sha256": "a742de6f4c6c79222a05003073df383e08412a45612677d0ca07567bdae1e929",
+        "outcome_id": "result_9f608d239298d85038ddbef9ad450f5e",
+        "recorded_by": "project-owner",
+        "recorded_at": "2026-11-28T11:20:06.249791+00:00"
+      }
+    ],
+    "cost_microusd": null,
+    "estimated_reader_cost_microusd": null,
+    "reader_cost_delta_microusd": null,
+    "reported_reader_cost_microusd": null,
+    "usage_source": "host_reported",
+    "comparison": [
+      {
+        "metric": "outcome",
+        "before": "answered",
+        "after": "answered"
+      },
+      {
+        "metric": "answer",
+        "before": "AX-100",
+        "after": "AX-745"
+      },
+      {
+        "metric": "input_tokens",
+        "before": 183,
+        "after": 180
+      },
+      {
+        "metric": "output_tokens",
+        "before": 29,
+        "after": 26
+      },
+      {
+        "metric": "cost_microusd",
+        "before": null,
+        "after": null
+      },
+      {
+        "metric": "estimated_reader_cost_microusd",
+        "before": null,
+        "after": null
+      },
+      {
+        "metric": "reported_reader_cost_microusd",
+        "before": null,
+        "after": null
+      },
+      {
+        "metric": "reader_cost_delta_microusd",
+        "before": null,
+        "after": null
+      },
+      {
+        "metric": "elapsed_ms",
+        "before": 14700,
+        "after": 13610
+      }
+    ],
+    "previous_outcomes": [
+      {
+        "classname": "test_route",
+        "kind": "test",
+        "outcome_id": "result_799d6ad00a96f64b87de5bc29137c285",
+        "recorded_at": "2026-11-28T11:19:31.133472+00:00",
+        "recorded_by": "project-owner",
+        "reference": "test_route.test_route",
+        "report_sha256": "edfa6f4e2c5e2e567ee20a785edc7d954847ac4a939a76c15d37e9150006326c",
+        "status": "failed",
+        "step_id": "team_c2a22f30f1d592f930c9394eb98450ec.4",
+        "test_name": "test_route",
+        "url": "",
+        "verification": "imported_junit"
+      }
+    ]
+  },
+  "policies": [
+    {
+      "policy": "single",
+      "correct": 10,
+      "stale": 0,
+      "model_calls": 6,
+      "input_tokens": 1306
+    },
+    {
+      "policy": "adaptive",
+      "correct": 10,
+      "stale": 0,
+      "model_calls": 8,
+      "input_tokens": 1471
+    },
+    {
+      "policy": "fixed",
+      "correct": 9,
+      "stale": 0,
+      "model_calls": 12,
+      "input_tokens": 1813
+    }
+  ],
+  "excerpts": {
+    "sha256:3981f95b926413c6d2a02aa56b229f7b353f047f9e1bdfd8a0bb2d54a0e34da0": {
+      "status": "verified",
+      "excerpt": "My Atlas routing code is AX-100.",
+      "end_offset": 32,
+      "excerpt_sha256": "sha256:3981f95b926413c6d2a02aa56b229f7b353f047f9e1bdfd8a0bb2d54a0e34da0",
+      "record_id": "rec_b5f0e3ca648e49f09a7ee45d627b5421",
+      "source_id": "routing-v1",
+      "start_offset": 0
+    },
+    "sha256:bc24d1c5f1974f33ba25a297b756cda6d3144ec42ff7a0310f598c4d46f685f0": {
+      "status": "verified",
+      "excerpt": "My Atlas routing code is AX-745.",
+      "end_offset": 32,
+      "excerpt_sha256": "sha256:bc24d1c5f1974f33ba25a297b756cda6d3144ec42ff7a0310f598c4d46f685f0",
+      "record_id": "rec_a3e44b5dfa6f47c994a7449f2bb7cec6",
+      "source_id": "routing-v2",
+      "start_offset": 0
+    }
+  }
+}

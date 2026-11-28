@@ -1,0 +1,3496 @@
+{
+  "model_digest": "65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b",
+  "cases_sha256": "c81ba7425f641d703e5264459119c0c2bf21fc30f8171cedba75dea4972fc51c",
+  "rows": [
+    {
+      "case_id": "owner-update",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_81a6a9c8b6a0428ba8b51d6b09450027",
+        "started_at": "2026-11-28T10:54:11.020217+00:00",
+        "question": "What is my current Juniper release owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "single",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_81a6a9c8b6a0428ba8b51d6b09450027.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 74,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 432,
+            "source_ids": [
+              "owner-update-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_8b44718edc1749a981a1ae4d3e4a4a77",
+            "generation": 4,
+            "context_sha256": "sha256:fa3fe5c3cf867a948721882a7ebf48890e94bc209c3c54c96145a0e497fb7bbe",
+            "provenance": [
+              {
+                "record_id": "rec_c6d953203c6e46a58f66962a338b9286",
+                "source_id": "owner-update-source-2",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ade842e3bf5c2272148701200b60e7169af67cb270a20e8fbba046cf9398cda0"
+              }
+            ]
+          },
+          {
+            "step_id": "team_81a6a9c8b6a0428ba8b51d6b09450027.2",
+            "parent_step_id": "team_81a6a9c8b6a0428ba8b51d6b09450027.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 4864,
+            "reason": "Read the scoped evidence directly.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"current_state\" sufficiency=\"sufficient\">\nRequired evidence: entity, relation, current_value, validity\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_c6d953203c6e46a58f66962a338b9286\" kind=\"atomic_fact\">\nuser Juniper release owner: Ravi (positive)\nSources: owner-update-source-2\n</memory>\n</atmem-context>\n",
+            "context_bytes": 432,
+            "input_tokens": 223,
+            "output_tokens": 7,
+            "status": "returned",
+            "quote": "Ravi",
+            "receipt_id": "ctxr_75ae279bb9f74cb596e72c5b9f5f4ca3",
+            "provenance": [
+              {
+                "record_id": "rec_c6d953203c6e46a58f66962a338b9286",
+                "source_id": "owner-update-source-2",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ade842e3bf5c2272148701200b60e7169af67cb270a20e8fbba046cf9398cda0"
+              }
+            ],
+            "generation": 4,
+            "preparation_id": "prep_8b44718edc1749a981a1ae4d3e4a4a77",
+            "source_ids": [
+              "owner-update-source-2"
+            ]
+          }
+        ],
+        "model_calls": 1,
+        "input_tokens": 223,
+        "output_tokens": 7,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": "Ravi",
+        "source_ids": [
+          "owner-update-source-2"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 4962,
+        "typed_rows_read": 3,
+        "unique_typed_records_read": 1,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "owner-update",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_d45c1ba50c8641df9b6bdf2678edab08",
+        "started_at": "2026-11-28T10:54:16.019329+00:00",
+        "question": "What is my current Juniper release owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "fixed",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_d45c1ba50c8641df9b6bdf2678edab08.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 21,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 432,
+            "source_ids": [
+              "owner-update-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_c363eb072cc54f90883cf142bae01802",
+            "generation": 4,
+            "context_sha256": "sha256:fa3fe5c3cf867a948721882a7ebf48890e94bc209c3c54c96145a0e497fb7bbe",
+            "provenance": [
+              {
+                "record_id": "rec_c6d953203c6e46a58f66962a338b9286",
+                "source_id": "owner-update-source-2",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ade842e3bf5c2272148701200b60e7169af67cb270a20e8fbba046cf9398cda0"
+              }
+            ]
+          },
+          {
+            "step_id": "team_d45c1ba50c8641df9b6bdf2678edab08.2",
+            "parent_step_id": "team_d45c1ba50c8641df9b6bdf2678edab08.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 18,
+            "status": "sufficient",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 1,
+            "limit": 16,
+            "context_bytes": 432,
+            "source_ids": [
+              "owner-update-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_3bd23b935c834d8bb93cd452242c24f6",
+            "generation": 4,
+            "context_sha256": "sha256:fa3fe5c3cf867a948721882a7ebf48890e94bc209c3c54c96145a0e497fb7bbe",
+            "provenance": [
+              {
+                "record_id": "rec_c6d953203c6e46a58f66962a338b9286",
+                "source_id": "owner-update-source-2",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ade842e3bf5c2272148701200b60e7169af67cb270a20e8fbba046cf9398cda0"
+              }
+            ]
+          },
+          {
+            "step_id": "team_d45c1ba50c8641df9b6bdf2678edab08.3",
+            "parent_step_id": "team_d45c1ba50c8641df9b6bdf2678edab08.2",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reviewer",
+            "elapsed_ms": 1723,
+            "reason": "Select a supporting quote from the expanded evidence.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"current_state\" sufficiency=\"sufficient\">\nRequired evidence: entity, relation, current_value, validity\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_c6d953203c6e46a58f66962a338b9286\" kind=\"atomic_fact\">\nuser Juniper release owner: Ravi (positive)\nSources: owner-update-source-2\n</memory>\n</atmem-context>\n",
+            "context_bytes": 432,
+            "input_tokens": 217,
+            "output_tokens": 13,
+            "status": "returned",
+            "quote": "Juniper release owner: Ravi",
+            "receipt_id": "ctxr_62d651dc55a040a080c69944e58b8640",
+            "provenance": [
+              {
+                "record_id": "rec_c6d953203c6e46a58f66962a338b9286",
+                "source_id": "owner-update-source-2",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ade842e3bf5c2272148701200b60e7169af67cb270a20e8fbba046cf9398cda0"
+              }
+            ],
+            "generation": 4,
+            "preparation_id": "prep_3bd23b935c834d8bb93cd452242c24f6",
+            "source_ids": [
+              "owner-update-source-2"
+            ]
+          },
+          {
+            "step_id": "team_d45c1ba50c8641df9b6bdf2678edab08.4",
+            "parent_step_id": "team_d45c1ba50c8641df9b6bdf2678edab08.3",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 646,
+            "reason": "Read the reviewed quote.",
+            "evidence": "Juniper release owner: Ravi",
+            "context_bytes": 27,
+            "input_tokens": 91,
+            "output_tokens": 8,
+            "status": "returned",
+            "quote": "Ravi",
+            "provenance": [
+              {
+                "record_id": "rec_c6d953203c6e46a58f66962a338b9286",
+                "source_id": "owner-update-source-2",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ade842e3bf5c2272148701200b60e7169af67cb270a20e8fbba046cf9398cda0"
+              }
+            ],
+            "generation": 4,
+            "preparation_id": "prep_3bd23b935c834d8bb93cd452242c24f6",
+            "source_ids": [
+              "owner-update-source-2"
+            ]
+          }
+        ],
+        "model_calls": 2,
+        "input_tokens": 308,
+        "output_tokens": 21,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": "Ravi",
+        "source_ids": [
+          "owner-update-source-2"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 2432,
+        "typed_rows_read": 6,
+        "unique_typed_records_read": 1,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "owner-update",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_608674063236485b91312ef0100392f2",
+        "started_at": "2026-11-28T10:54:18.473116+00:00",
+        "question": "What is my current Juniper release owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "adaptive",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_608674063236485b91312ef0100392f2.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 20,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 432,
+            "source_ids": [
+              "owner-update-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_fabdd35f03b5486e9adf83a45eceffdf",
+            "generation": 4,
+            "context_sha256": "sha256:fa3fe5c3cf867a948721882a7ebf48890e94bc209c3c54c96145a0e497fb7bbe",
+            "provenance": [
+              {
+                "record_id": "rec_c6d953203c6e46a58f66962a338b9286",
+                "source_id": "owner-update-source-2",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ade842e3bf5c2272148701200b60e7169af67cb270a20e8fbba046cf9398cda0"
+              }
+            ]
+          },
+          {
+            "step_id": "team_608674063236485b91312ef0100392f2.2",
+            "parent_step_id": "team_608674063236485b91312ef0100392f2.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 1168,
+            "reason": "Read the scoped evidence directly.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"current_state\" sufficiency=\"sufficient\">\nRequired evidence: entity, relation, current_value, validity\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_c6d953203c6e46a58f66962a338b9286\" kind=\"atomic_fact\">\nuser Juniper release owner: Ravi (positive)\nSources: owner-update-source-2\n</memory>\n</atmem-context>\n",
+            "context_bytes": 432,
+            "input_tokens": 223,
+            "output_tokens": 7,
+            "status": "returned",
+            "quote": "Ravi",
+            "receipt_id": "ctxr_b83f5659c69a4f559f83db7e3e9ec8fe",
+            "provenance": [
+              {
+                "record_id": "rec_c6d953203c6e46a58f66962a338b9286",
+                "source_id": "owner-update-source-2",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ade842e3bf5c2272148701200b60e7169af67cb270a20e8fbba046cf9398cda0"
+              }
+            ],
+            "generation": 4,
+            "preparation_id": "prep_fabdd35f03b5486e9adf83a45eceffdf",
+            "source_ids": [
+              "owner-update-source-2"
+            ]
+          }
+        ],
+        "model_calls": 1,
+        "input_tokens": 223,
+        "output_tokens": 7,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": "Ravi",
+        "source_ids": [
+          "owner-update-source-2"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 1207,
+        "typed_rows_read": 3,
+        "unique_typed_records_read": 1,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "two-projects",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_2ad2ec3dcf3a4800af7de41425057bf6",
+        "started_at": "2026-11-28T10:54:20.132313+00:00",
+        "question": "What is my Selene release owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "fixed",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_2ad2ec3dcf3a4800af7de41425057bf6.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 222,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 2,
+            "limit": 4,
+            "context_bytes": 411,
+            "source_ids": [
+              "two-projects-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_30dd62eb5c484e0097ec233f2849fbb1",
+            "generation": 2,
+            "context_sha256": "sha256:408d54f7a2bd6c0fc158527e75bb5ed76202492f958a2cb9f487d758304879dc",
+            "provenance": [
+              {
+                "record_id": "rec_78d4f0f76ded45d9b13a0c233b5edeb5",
+                "source_id": "two-projects-source-2",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:aa2aa38d7377e139177fa9169495c231fcb2e2c375e212acc9e1945c8c9a2a58"
+              }
+            ]
+          },
+          {
+            "step_id": "team_2ad2ec3dcf3a4800af7de41425057bf6.2",
+            "parent_step_id": "team_2ad2ec3dcf3a4800af7de41425057bf6.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 20,
+            "status": "sufficient",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 2,
+            "limit": 16,
+            "context_bytes": 411,
+            "source_ids": [
+              "two-projects-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_30dd426dc80c406d9810bf48e715dd15",
+            "generation": 2,
+            "context_sha256": "sha256:408d54f7a2bd6c0fc158527e75bb5ed76202492f958a2cb9f487d758304879dc",
+            "provenance": [
+              {
+                "record_id": "rec_78d4f0f76ded45d9b13a0c233b5edeb5",
+                "source_id": "two-projects-source-2",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:aa2aa38d7377e139177fa9169495c231fcb2e2c375e212acc9e1945c8c9a2a58"
+              }
+            ]
+          },
+          {
+            "step_id": "team_2ad2ec3dcf3a4800af7de41425057bf6.3",
+            "parent_step_id": "team_2ad2ec3dcf3a4800af7de41425057bf6.2",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reviewer",
+            "elapsed_ms": 1318,
+            "reason": "Select a supporting quote from the expanded evidence.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_78d4f0f76ded45d9b13a0c233b5edeb5\" kind=\"atomic_fact\">\nuser Selene release owner: Theo (positive)\nSources: two-projects-source-2\n</memory>\n</atmem-context>\n",
+            "context_bytes": 411,
+            "input_tokens": 210,
+            "output_tokens": 12,
+            "status": "returned",
+            "quote": "Selene release owner: Theo",
+            "receipt_id": "ctxr_a3fa376f30d3457b9e41ea778b7d0956",
+            "provenance": [
+              {
+                "record_id": "rec_78d4f0f76ded45d9b13a0c233b5edeb5",
+                "source_id": "two-projects-source-2",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:aa2aa38d7377e139177fa9169495c231fcb2e2c375e212acc9e1945c8c9a2a58"
+              }
+            ],
+            "generation": 2,
+            "preparation_id": "prep_30dd426dc80c406d9810bf48e715dd15",
+            "source_ids": [
+              "two-projects-source-2"
+            ]
+          },
+          {
+            "step_id": "team_2ad2ec3dcf3a4800af7de41425057bf6.4",
+            "parent_step_id": "team_2ad2ec3dcf3a4800af7de41425057bf6.3",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 662,
+            "reason": "Read the reviewed quote.",
+            "evidence": "Selene release owner: Theo",
+            "context_bytes": 26,
+            "input_tokens": 89,
+            "output_tokens": 8,
+            "status": "returned",
+            "quote": "Theo",
+            "provenance": [
+              {
+                "record_id": "rec_78d4f0f76ded45d9b13a0c233b5edeb5",
+                "source_id": "two-projects-source-2",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:aa2aa38d7377e139177fa9169495c231fcb2e2c375e212acc9e1945c8c9a2a58"
+              }
+            ],
+            "generation": 2,
+            "preparation_id": "prep_30dd426dc80c406d9810bf48e715dd15",
+            "source_ids": [
+              "two-projects-source-2"
+            ]
+          }
+        ],
+        "model_calls": 2,
+        "input_tokens": 299,
+        "output_tokens": 20,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": "Theo",
+        "source_ids": [
+          "two-projects-source-2"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 2230,
+        "typed_rows_read": 11,
+        "unique_typed_records_read": 2,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "two-projects",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_f7a4c34b4f364335a8acb8e549421247",
+        "started_at": "2026-11-28T10:54:22.416284+00:00",
+        "question": "What is my Selene release owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "adaptive",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_f7a4c34b4f364335a8acb8e549421247.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 32,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 2,
+            "limit": 4,
+            "context_bytes": 411,
+            "source_ids": [
+              "two-projects-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_2e6f2732759a462b82e11904d58c17a9",
+            "generation": 2,
+            "context_sha256": "sha256:408d54f7a2bd6c0fc158527e75bb5ed76202492f958a2cb9f487d758304879dc",
+            "provenance": [
+              {
+                "record_id": "rec_78d4f0f76ded45d9b13a0c233b5edeb5",
+                "source_id": "two-projects-source-2",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:aa2aa38d7377e139177fa9169495c231fcb2e2c375e212acc9e1945c8c9a2a58"
+              }
+            ]
+          },
+          {
+            "step_id": "team_f7a4c34b4f364335a8acb8e549421247.2",
+            "parent_step_id": "team_f7a4c34b4f364335a8acb8e549421247.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 1061,
+            "reason": "Read the scoped evidence directly.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_78d4f0f76ded45d9b13a0c233b5edeb5\" kind=\"atomic_fact\">\nuser Selene release owner: Theo (positive)\nSources: two-projects-source-2\n</memory>\n</atmem-context>\n",
+            "context_bytes": 411,
+            "input_tokens": 216,
+            "output_tokens": 7,
+            "status": "returned",
+            "quote": "Theo",
+            "receipt_id": "ctxr_3af980a97ca84cc7a52c717d27b52b5b",
+            "provenance": [
+              {
+                "record_id": "rec_78d4f0f76ded45d9b13a0c233b5edeb5",
+                "source_id": "two-projects-source-2",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:aa2aa38d7377e139177fa9169495c231fcb2e2c375e212acc9e1945c8c9a2a58"
+              }
+            ],
+            "generation": 2,
+            "preparation_id": "prep_2e6f2732759a462b82e11904d58c17a9",
+            "source_ids": [
+              "two-projects-source-2"
+            ]
+          }
+        ],
+        "model_calls": 1,
+        "input_tokens": 216,
+        "output_tokens": 7,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": "Theo",
+        "source_ids": [
+          "two-projects-source-2"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 1104,
+        "typed_rows_read": 5,
+        "unique_typed_records_read": 2,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "two-projects",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_e59c4b247c2b4139bb53e51160c67326",
+        "started_at": "2026-11-28T10:54:23.551260+00:00",
+        "question": "What is my Selene release owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "single",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_e59c4b247c2b4139bb53e51160c67326.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 43,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 2,
+            "limit": 4,
+            "context_bytes": 411,
+            "source_ids": [
+              "two-projects-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_321176c169a748e090ba9741a362f6bb",
+            "generation": 2,
+            "context_sha256": "sha256:408d54f7a2bd6c0fc158527e75bb5ed76202492f958a2cb9f487d758304879dc",
+            "provenance": [
+              {
+                "record_id": "rec_78d4f0f76ded45d9b13a0c233b5edeb5",
+                "source_id": "two-projects-source-2",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:aa2aa38d7377e139177fa9169495c231fcb2e2c375e212acc9e1945c8c9a2a58"
+              }
+            ]
+          },
+          {
+            "step_id": "team_e59c4b247c2b4139bb53e51160c67326.2",
+            "parent_step_id": "team_e59c4b247c2b4139bb53e51160c67326.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 432,
+            "reason": "Read the scoped evidence directly.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_78d4f0f76ded45d9b13a0c233b5edeb5\" kind=\"atomic_fact\">\nuser Selene release owner: Theo (positive)\nSources: two-projects-source-2\n</memory>\n</atmem-context>\n",
+            "context_bytes": 411,
+            "input_tokens": 216,
+            "output_tokens": 7,
+            "status": "returned",
+            "quote": "Theo",
+            "receipt_id": "ctxr_ac94fd21077a409f917e0e244d19d6da",
+            "provenance": [
+              {
+                "record_id": "rec_78d4f0f76ded45d9b13a0c233b5edeb5",
+                "source_id": "two-projects-source-2",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:aa2aa38d7377e139177fa9169495c231fcb2e2c375e212acc9e1945c8c9a2a58"
+              }
+            ],
+            "generation": 2,
+            "preparation_id": "prep_321176c169a748e090ba9741a362f6bb",
+            "source_ids": [
+              "two-projects-source-2"
+            ]
+          }
+        ],
+        "model_calls": 1,
+        "input_tokens": 216,
+        "output_tokens": 7,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": "Theo",
+        "source_ids": [
+          "two-projects-source-2"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 504,
+        "typed_rows_read": 5,
+        "unique_typed_records_read": 2,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "identifier-update",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_3dd10128518f47fcad416118c58bdddf",
+        "started_at": "2026-11-28T10:54:24.510227+00:00",
+        "question": "What is my Boreal dispatch code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "adaptive",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_3dd10128518f47fcad416118c58bdddf.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 22,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 418,
+            "source_ids": [
+              "identifier-update-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_ea8b8b50c874432390b5539b03c971a9",
+            "generation": 4,
+            "context_sha256": "sha256:51ecf2c3bd44e963407781b8010df6d526a22325a870e1ba3e82293c812a684c",
+            "provenance": [
+              {
+                "record_id": "rec_d1b4a7f5b68041248d0e062181fe5a48",
+                "source_id": "identifier-update-source-2",
+                "start_offset": 0,
+                "end_offset": 34,
+                "excerpt_sha256": "sha256:7d963b1bc68c40115553b487836d3dd314760a21ba8ea605b22b12d1c59e8db8"
+              }
+            ]
+          },
+          {
+            "step_id": "team_3dd10128518f47fcad416118c58bdddf.2",
+            "parent_step_id": "team_3dd10128518f47fcad416118c58bdddf.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 1228,
+            "reason": "Read the scoped evidence directly.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_d1b4a7f5b68041248d0e062181fe5a48\" kind=\"atomic_fact\">\nuser Boreal dispatch code: BR-814 (positive)\nSources: identifier-update-source-2\n</memory>\n</atmem-context>\n",
+            "context_bytes": 418,
+            "input_tokens": 221,
+            "output_tokens": 10,
+            "status": "returned",
+            "quote": "BR-814",
+            "receipt_id": "ctxr_0120c6298b204abb931676e836f9f256",
+            "provenance": [
+              {
+                "record_id": "rec_d1b4a7f5b68041248d0e062181fe5a48",
+                "source_id": "identifier-update-source-2",
+                "start_offset": 0,
+                "end_offset": 34,
+                "excerpt_sha256": "sha256:7d963b1bc68c40115553b487836d3dd314760a21ba8ea605b22b12d1c59e8db8"
+              }
+            ],
+            "generation": 4,
+            "preparation_id": "prep_ea8b8b50c874432390b5539b03c971a9",
+            "source_ids": [
+              "identifier-update-source-2"
+            ]
+          }
+        ],
+        "model_calls": 1,
+        "input_tokens": 221,
+        "output_tokens": 10,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": "BR-814",
+        "source_ids": [
+          "identifier-update-source-2"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 1259,
+        "typed_rows_read": 3,
+        "unique_typed_records_read": 1,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "identifier-update",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_23f2bb0a8fd94ee7ae0edc324fe7add1",
+        "started_at": "2026-11-28T10:54:25.792255+00:00",
+        "question": "What is my Boreal dispatch code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "single",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_23f2bb0a8fd94ee7ae0edc324fe7add1.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 47,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 418,
+            "source_ids": [
+              "identifier-update-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_dbe87d0328f14901a44a01250c16866f",
+            "generation": 4,
+            "context_sha256": "sha256:51ecf2c3bd44e963407781b8010df6d526a22325a870e1ba3e82293c812a684c",
+            "provenance": [
+              {
+                "record_id": "rec_d1b4a7f5b68041248d0e062181fe5a48",
+                "source_id": "identifier-update-source-2",
+                "start_offset": 0,
+                "end_offset": 34,
+                "excerpt_sha256": "sha256:7d963b1bc68c40115553b487836d3dd314760a21ba8ea605b22b12d1c59e8db8"
+              }
+            ]
+          },
+          {
+            "step_id": "team_23f2bb0a8fd94ee7ae0edc324fe7add1.2",
+            "parent_step_id": "team_23f2bb0a8fd94ee7ae0edc324fe7add1.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 628,
+            "reason": "Read the scoped evidence directly.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_d1b4a7f5b68041248d0e062181fe5a48\" kind=\"atomic_fact\">\nuser Boreal dispatch code: BR-814 (positive)\nSources: identifier-update-source-2\n</memory>\n</atmem-context>\n",
+            "context_bytes": 418,
+            "input_tokens": 221,
+            "output_tokens": 10,
+            "status": "returned",
+            "quote": "BR-814",
+            "receipt_id": "ctxr_ef73b960833a473fbec3f275d8f04efd",
+            "provenance": [
+              {
+                "record_id": "rec_d1b4a7f5b68041248d0e062181fe5a48",
+                "source_id": "identifier-update-source-2",
+                "start_offset": 0,
+                "end_offset": 34,
+                "excerpt_sha256": "sha256:7d963b1bc68c40115553b487836d3dd314760a21ba8ea605b22b12d1c59e8db8"
+              }
+            ],
+            "generation": 4,
+            "preparation_id": "prep_dbe87d0328f14901a44a01250c16866f",
+            "source_ids": [
+              "identifier-update-source-2"
+            ]
+          }
+        ],
+        "model_calls": 1,
+        "input_tokens": 221,
+        "output_tokens": 10,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": "BR-814",
+        "source_ids": [
+          "identifier-update-source-2"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 684,
+        "typed_rows_read": 3,
+        "unique_typed_records_read": 1,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "identifier-update",
+      "grade": {
+        "correct": false,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_bdafd986436a4ad59fb70616dca68aad",
+        "started_at": "2026-11-28T10:54:26.501242+00:00",
+        "question": "What is my Boreal dispatch code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "fixed",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_bdafd986436a4ad59fb70616dca68aad.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 19,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 418,
+            "source_ids": [
+              "identifier-update-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_604d7c1f9100453ead8520c2e0bf7755",
+            "generation": 4,
+            "context_sha256": "sha256:51ecf2c3bd44e963407781b8010df6d526a22325a870e1ba3e82293c812a684c",
+            "provenance": [
+              {
+                "record_id": "rec_d1b4a7f5b68041248d0e062181fe5a48",
+                "source_id": "identifier-update-source-2",
+                "start_offset": 0,
+                "end_offset": 34,
+                "excerpt_sha256": "sha256:7d963b1bc68c40115553b487836d3dd314760a21ba8ea605b22b12d1c59e8db8"
+              }
+            ]
+          },
+          {
+            "step_id": "team_bdafd986436a4ad59fb70616dca68aad.2",
+            "parent_step_id": "team_bdafd986436a4ad59fb70616dca68aad.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 19,
+            "status": "sufficient",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 1,
+            "limit": 16,
+            "context_bytes": 418,
+            "source_ids": [
+              "identifier-update-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_752d0208fc414cdfb46ea95d4d820f31",
+            "generation": 4,
+            "context_sha256": "sha256:51ecf2c3bd44e963407781b8010df6d526a22325a870e1ba3e82293c812a684c",
+            "provenance": [
+              {
+                "record_id": "rec_d1b4a7f5b68041248d0e062181fe5a48",
+                "source_id": "identifier-update-source-2",
+                "start_offset": 0,
+                "end_offset": 34,
+                "excerpt_sha256": "sha256:7d963b1bc68c40115553b487836d3dd314760a21ba8ea605b22b12d1c59e8db8"
+              }
+            ]
+          },
+          {
+            "step_id": "team_bdafd986436a4ad59fb70616dca68aad.3",
+            "parent_step_id": "team_bdafd986436a4ad59fb70616dca68aad.2",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reviewer",
+            "elapsed_ms": 1859,
+            "reason": "Select a supporting quote from the expanded evidence.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_d1b4a7f5b68041248d0e062181fe5a48\" kind=\"atomic_fact\">\nuser Boreal dispatch code: BR-814 (positive)\nSources: identifier-update-source-2\n</memory>\n</atmem-context>\n",
+            "context_bytes": 418,
+            "input_tokens": 215,
+            "output_tokens": 19,
+            "status": "returned",
+            "quote": "Boreal dispatch code: BR-814 (positive)",
+            "receipt_id": "ctxr_fabfe03d490f491f84f81fe9b89810f8",
+            "provenance": [
+              {
+                "record_id": "rec_d1b4a7f5b68041248d0e062181fe5a48",
+                "source_id": "identifier-update-source-2",
+                "start_offset": 0,
+                "end_offset": 34,
+                "excerpt_sha256": "sha256:7d963b1bc68c40115553b487836d3dd314760a21ba8ea605b22b12d1c59e8db8"
+              }
+            ],
+            "generation": 4,
+            "preparation_id": "prep_752d0208fc414cdfb46ea95d4d820f31",
+            "source_ids": [
+              "identifier-update-source-2"
+            ]
+          },
+          {
+            "step_id": "team_bdafd986436a4ad59fb70616dca68aad.4",
+            "parent_step_id": "team_bdafd986436a4ad59fb70616dca68aad.3",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 1047,
+            "reason": "Read the reviewed quote.",
+            "evidence": "Boreal dispatch code: BR-814 (positive)",
+            "context_bytes": 39,
+            "input_tokens": 96,
+            "output_tokens": 14,
+            "status": "returned",
+            "quote": "BR-814 (positive)",
+            "provenance": [
+              {
+                "record_id": "rec_d1b4a7f5b68041248d0e062181fe5a48",
+                "source_id": "identifier-update-source-2",
+                "start_offset": 0,
+                "end_offset": 34,
+                "excerpt_sha256": "sha256:7d963b1bc68c40115553b487836d3dd314760a21ba8ea605b22b12d1c59e8db8"
+              }
+            ],
+            "generation": 4,
+            "preparation_id": "prep_752d0208fc414cdfb46ea95d4d820f31",
+            "source_ids": [
+              "identifier-update-source-2"
+            ]
+          }
+        ],
+        "model_calls": 2,
+        "input_tokens": 311,
+        "output_tokens": 33,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": "BR-814 (positive)",
+        "source_ids": [
+          "identifier-update-source-2"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 2958,
+        "typed_rows_read": 6,
+        "unique_typed_records_read": 1,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "crowded-routing",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_8e55ed8cb03c446bb5a7ee273348047e",
+        "started_at": "2026-11-28T10:54:30.082203+00:00",
+        "question": "What is my Sable dispatch code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "single",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_8e55ed8cb03c446bb5a7ee273348047e.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 32,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 4,
+            "limit": 4,
+            "context_bytes": 415,
+            "source_ids": [
+              "crowded-routing-source-3"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_746949e71b7840debebda100c4bcd1d1",
+            "generation": 6,
+            "context_sha256": "sha256:7940432a41e84918914a04a0f00dd710a99683b421bb1018af0f4b73081eff0b",
+            "provenance": [
+              {
+                "record_id": "rec_a4cd07bb4b054b339ac132353672f7b1",
+                "source_id": "crowded-routing-source-3",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ddf4253add59fcfa79dd0f6f1b3eb510d18979038e2cee288a34281e5f44156f"
+              }
+            ]
+          },
+          {
+            "step_id": "team_8e55ed8cb03c446bb5a7ee273348047e.2",
+            "parent_step_id": "team_8e55ed8cb03c446bb5a7ee273348047e.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 1215,
+            "reason": "Read the scoped evidence directly.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_a4cd07bb4b054b339ac132353672f7b1\" kind=\"atomic_fact\">\nuser Sable dispatch code: SA-784 (positive)\nSources: crowded-routing-source-3\n</memory>\n</atmem-context>\n",
+            "context_bytes": 415,
+            "input_tokens": 219,
+            "output_tokens": 11,
+            "status": "returned",
+            "quote": "SA-784",
+            "receipt_id": "ctxr_ee0ec94a96cf4fe6a95cfcf86b9811c5",
+            "provenance": [
+              {
+                "record_id": "rec_a4cd07bb4b054b339ac132353672f7b1",
+                "source_id": "crowded-routing-source-3",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ddf4253add59fcfa79dd0f6f1b3eb510d18979038e2cee288a34281e5f44156f"
+              }
+            ],
+            "generation": 6,
+            "preparation_id": "prep_746949e71b7840debebda100c4bcd1d1",
+            "source_ids": [
+              "crowded-routing-source-3"
+            ]
+          }
+        ],
+        "model_calls": 1,
+        "input_tokens": 219,
+        "output_tokens": 11,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": "SA-784",
+        "source_ids": [
+          "crowded-routing-source-3"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 1264,
+        "typed_rows_read": 9,
+        "unique_typed_records_read": 4,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "crowded-routing",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_feaea10492c84ddc981f533041bfb4da",
+        "started_at": "2026-11-28T10:54:31.369377+00:00",
+        "question": "What is my Sable dispatch code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "fixed",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_feaea10492c84ddc981f533041bfb4da.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 137,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 4,
+            "limit": 4,
+            "context_bytes": 415,
+            "source_ids": [
+              "crowded-routing-source-3"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_fd2d0ef9a9ca44b69cca217f0e257aa6",
+            "generation": 6,
+            "context_sha256": "sha256:7940432a41e84918914a04a0f00dd710a99683b421bb1018af0f4b73081eff0b",
+            "provenance": [
+              {
+                "record_id": "rec_a4cd07bb4b054b339ac132353672f7b1",
+                "source_id": "crowded-routing-source-3",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ddf4253add59fcfa79dd0f6f1b3eb510d18979038e2cee288a34281e5f44156f"
+              }
+            ]
+          },
+          {
+            "step_id": "team_feaea10492c84ddc981f533041bfb4da.2",
+            "parent_step_id": "team_feaea10492c84ddc981f533041bfb4da.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 50,
+            "status": "sufficient",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 6,
+            "limit": 16,
+            "context_bytes": 415,
+            "source_ids": [
+              "crowded-routing-source-3"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_d13b6361e5804dd785f2271cbb944f32",
+            "generation": 6,
+            "context_sha256": "sha256:7940432a41e84918914a04a0f00dd710a99683b421bb1018af0f4b73081eff0b",
+            "provenance": [
+              {
+                "record_id": "rec_a4cd07bb4b054b339ac132353672f7b1",
+                "source_id": "crowded-routing-source-3",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ddf4253add59fcfa79dd0f6f1b3eb510d18979038e2cee288a34281e5f44156f"
+              }
+            ]
+          },
+          {
+            "step_id": "team_feaea10492c84ddc981f533041bfb4da.3",
+            "parent_step_id": "team_feaea10492c84ddc981f533041bfb4da.2",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reviewer",
+            "elapsed_ms": 2405,
+            "reason": "Select a supporting quote from the expanded evidence.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_a4cd07bb4b054b339ac132353672f7b1\" kind=\"atomic_fact\">\nuser Sable dispatch code: SA-784 (positive)\nSources: crowded-routing-source-3\n</memory>\n</atmem-context>\n",
+            "context_bytes": 415,
+            "input_tokens": 213,
+            "output_tokens": 16,
+            "status": "returned",
+            "quote": "Sable dispatch code: SA-784",
+            "receipt_id": "ctxr_ca3fb6ce660e403ab462d87643734bee",
+            "provenance": [
+              {
+                "record_id": "rec_a4cd07bb4b054b339ac132353672f7b1",
+                "source_id": "crowded-routing-source-3",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ddf4253add59fcfa79dd0f6f1b3eb510d18979038e2cee288a34281e5f44156f"
+              }
+            ],
+            "generation": 6,
+            "preparation_id": "prep_d13b6361e5804dd785f2271cbb944f32",
+            "source_ids": [
+              "crowded-routing-source-3"
+            ]
+          },
+          {
+            "step_id": "team_feaea10492c84ddc981f533041bfb4da.4",
+            "parent_step_id": "team_feaea10492c84ddc981f533041bfb4da.3",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 900,
+            "reason": "Read the reviewed quote.",
+            "evidence": "Sable dispatch code: SA-784",
+            "context_bytes": 27,
+            "input_tokens": 93,
+            "output_tokens": 11,
+            "status": "returned",
+            "quote": "SA-784",
+            "provenance": [
+              {
+                "record_id": "rec_a4cd07bb4b054b339ac132353672f7b1",
+                "source_id": "crowded-routing-source-3",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ddf4253add59fcfa79dd0f6f1b3eb510d18979038e2cee288a34281e5f44156f"
+              }
+            ],
+            "generation": 6,
+            "preparation_id": "prep_d13b6361e5804dd785f2271cbb944f32",
+            "source_ids": [
+              "crowded-routing-source-3"
+            ]
+          }
+        ],
+        "model_calls": 2,
+        "input_tokens": 306,
+        "output_tokens": 27,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": "SA-784",
+        "source_ids": [
+          "crowded-routing-source-3"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 3521,
+        "typed_rows_read": 25,
+        "unique_typed_records_read": 6,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "crowded-routing",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_bde12a3d12384705a1f9028822867989",
+        "started_at": "2026-11-28T10:54:34.995514+00:00",
+        "question": "What is my Sable dispatch code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "adaptive",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_bde12a3d12384705a1f9028822867989.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 344,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 4,
+            "limit": 4,
+            "context_bytes": 415,
+            "source_ids": [
+              "crowded-routing-source-3"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_918d421c01204261a3f12708879f7551",
+            "generation": 6,
+            "context_sha256": "sha256:7940432a41e84918914a04a0f00dd710a99683b421bb1018af0f4b73081eff0b",
+            "provenance": [
+              {
+                "record_id": "rec_a4cd07bb4b054b339ac132353672f7b1",
+                "source_id": "crowded-routing-source-3",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ddf4253add59fcfa79dd0f6f1b3eb510d18979038e2cee288a34281e5f44156f"
+              }
+            ]
+          },
+          {
+            "step_id": "team_bde12a3d12384705a1f9028822867989.2",
+            "parent_step_id": "team_bde12a3d12384705a1f9028822867989.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 416,
+            "status": "sufficient",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 6,
+            "limit": 16,
+            "context_bytes": 415,
+            "source_ids": [
+              "crowded-routing-source-3"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_faff4530e96c4e30867a36a428b10daf",
+            "generation": 6,
+            "context_sha256": "sha256:7940432a41e84918914a04a0f00dd710a99683b421bb1018af0f4b73081eff0b",
+            "provenance": [
+              {
+                "record_id": "rec_a4cd07bb4b054b339ac132353672f7b1",
+                "source_id": "crowded-routing-source-3",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ddf4253add59fcfa79dd0f6f1b3eb510d18979038e2cee288a34281e5f44156f"
+              }
+            ]
+          },
+          {
+            "step_id": "team_bde12a3d12384705a1f9028822867989.3",
+            "parent_step_id": "team_bde12a3d12384705a1f9028822867989.2",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reviewer",
+            "elapsed_ms": 1422,
+            "reason": "Select a supporting quote from the expanded evidence.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_a4cd07bb4b054b339ac132353672f7b1\" kind=\"atomic_fact\">\nuser Sable dispatch code: SA-784 (positive)\nSources: crowded-routing-source-3\n</memory>\n</atmem-context>\n",
+            "context_bytes": 415,
+            "input_tokens": 213,
+            "output_tokens": 16,
+            "status": "returned",
+            "quote": "Sable dispatch code: SA-784",
+            "receipt_id": "ctxr_b155ac8911d545cd8188d5654072aa18",
+            "provenance": [
+              {
+                "record_id": "rec_a4cd07bb4b054b339ac132353672f7b1",
+                "source_id": "crowded-routing-source-3",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ddf4253add59fcfa79dd0f6f1b3eb510d18979038e2cee288a34281e5f44156f"
+              }
+            ],
+            "generation": 6,
+            "preparation_id": "prep_faff4530e96c4e30867a36a428b10daf",
+            "source_ids": [
+              "crowded-routing-source-3"
+            ]
+          },
+          {
+            "step_id": "team_bde12a3d12384705a1f9028822867989.4",
+            "parent_step_id": "team_bde12a3d12384705a1f9028822867989.3",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 1473,
+            "reason": "Read the reviewed quote.",
+            "evidence": "Sable dispatch code: SA-784",
+            "context_bytes": 27,
+            "input_tokens": 93,
+            "output_tokens": 11,
+            "status": "returned",
+            "quote": "SA-784",
+            "provenance": [
+              {
+                "record_id": "rec_a4cd07bb4b054b339ac132353672f7b1",
+                "source_id": "crowded-routing-source-3",
+                "start_offset": 0,
+                "end_offset": 33,
+                "excerpt_sha256": "sha256:ddf4253add59fcfa79dd0f6f1b3eb510d18979038e2cee288a34281e5f44156f"
+              }
+            ],
+            "generation": 6,
+            "preparation_id": "prep_faff4530e96c4e30867a36a428b10daf",
+            "source_ids": [
+              "crowded-routing-source-3"
+            ]
+          }
+        ],
+        "model_calls": 2,
+        "input_tokens": 306,
+        "output_tokens": 27,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": "SA-784",
+        "source_ids": [
+          "crowded-routing-source-3"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 3782,
+        "typed_rows_read": 25,
+        "unique_typed_records_read": 6,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "crowded-preference",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_960fb8ece881423bbedcb11b3d511295",
+        "started_at": "2026-11-28T10:54:39.841217+00:00",
+        "question": "What is my favorite city?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "fixed",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_960fb8ece881423bbedcb11b3d511295.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 73,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 4,
+            "limit": 4,
+            "context_bytes": 412,
+            "source_ids": [
+              "crowded-preference-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_045f77b6e1984ef39d3c43304c62e1a2",
+            "generation": 5,
+            "context_sha256": "sha256:be676561b240768ff113cfea8951603b9a1d0c714ac36faba5b18cf6191222e3",
+            "provenance": [
+              {
+                "record_id": "rec_47821e68f8994db6aca69de7e3916142",
+                "source_id": "crowded-preference-source-2",
+                "start_offset": 0,
+                "end_offset": 27,
+                "excerpt_sha256": "sha256:b2b8bd3c92a3af6fff78a203ed33ec8dd7811e60cb9ad2f41018a56c14153ce5"
+              }
+            ]
+          },
+          {
+            "step_id": "team_960fb8ece881423bbedcb11b3d511295.2",
+            "parent_step_id": "team_960fb8ece881423bbedcb11b3d511295.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 174,
+            "status": "sufficient",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 5,
+            "limit": 16,
+            "context_bytes": 412,
+            "source_ids": [
+              "crowded-preference-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_1808682896fc44b8a6ca3f905f943f34",
+            "generation": 5,
+            "context_sha256": "sha256:be676561b240768ff113cfea8951603b9a1d0c714ac36faba5b18cf6191222e3",
+            "provenance": [
+              {
+                "record_id": "rec_47821e68f8994db6aca69de7e3916142",
+                "source_id": "crowded-preference-source-2",
+                "start_offset": 0,
+                "end_offset": 27,
+                "excerpt_sha256": "sha256:b2b8bd3c92a3af6fff78a203ed33ec8dd7811e60cb9ad2f41018a56c14153ce5"
+              }
+            ]
+          },
+          {
+            "step_id": "team_960fb8ece881423bbedcb11b3d511295.3",
+            "parent_step_id": "team_960fb8ece881423bbedcb11b3d511295.2",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reviewer",
+            "elapsed_ms": 1486,
+            "reason": "Select a supporting quote from the expanded evidence.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_47821e68f8994db6aca69de7e3916142\" kind=\"atomic_fact\">\nuser favorite city: Bergen (positive)\nSources: crowded-preference-source-2\n</memory>\n</atmem-context>\n",
+            "context_bytes": 412,
+            "input_tokens": 206,
+            "output_tokens": 9,
+            "status": "returned",
+            "quote": "Bergen",
+            "receipt_id": "ctxr_fe09c7ab87e441c8919edeabf70b3c2d",
+            "provenance": [
+              {
+                "record_id": "rec_47821e68f8994db6aca69de7e3916142",
+                "source_id": "crowded-preference-source-2",
+                "start_offset": 0,
+                "end_offset": 27,
+                "excerpt_sha256": "sha256:b2b8bd3c92a3af6fff78a203ed33ec8dd7811e60cb9ad2f41018a56c14153ce5"
+              }
+            ],
+            "generation": 5,
+            "preparation_id": "prep_1808682896fc44b8a6ca3f905f943f34",
+            "source_ids": [
+              "crowded-preference-source-2"
+            ]
+          },
+          {
+            "step_id": "team_960fb8ece881423bbedcb11b3d511295.4",
+            "parent_step_id": "team_960fb8ece881423bbedcb11b3d511295.3",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 852,
+            "reason": "Read the reviewed quote.",
+            "evidence": "Bergen",
+            "context_bytes": 6,
+            "input_tokens": 84,
+            "output_tokens": 9,
+            "status": "returned",
+            "quote": "Bergen",
+            "provenance": [
+              {
+                "record_id": "rec_47821e68f8994db6aca69de7e3916142",
+                "source_id": "crowded-preference-source-2",
+                "start_offset": 0,
+                "end_offset": 27,
+                "excerpt_sha256": "sha256:b2b8bd3c92a3af6fff78a203ed33ec8dd7811e60cb9ad2f41018a56c14153ce5"
+              }
+            ],
+            "generation": 5,
+            "preparation_id": "prep_1808682896fc44b8a6ca3f905f943f34",
+            "source_ids": [
+              "crowded-preference-source-2"
+            ]
+          }
+        ],
+        "model_calls": 2,
+        "input_tokens": 290,
+        "output_tokens": 18,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": "Bergen",
+        "source_ids": [
+          "crowded-preference-source-2"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 2632,
+        "typed_rows_read": 23,
+        "unique_typed_records_read": 5,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "crowded-preference",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_43a3623bd7fc45a6a9c752b3c924b82d",
+        "started_at": "2026-11-28T10:54:42.525329+00:00",
+        "question": "What is my favorite city?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "adaptive",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_43a3623bd7fc45a6a9c752b3c924b82d.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 509,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 4,
+            "limit": 4,
+            "context_bytes": 412,
+            "source_ids": [
+              "crowded-preference-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_e0851226e0124fd3a6770d42c234a720",
+            "generation": 5,
+            "context_sha256": "sha256:be676561b240768ff113cfea8951603b9a1d0c714ac36faba5b18cf6191222e3",
+            "provenance": [
+              {
+                "record_id": "rec_47821e68f8994db6aca69de7e3916142",
+                "source_id": "crowded-preference-source-2",
+                "start_offset": 0,
+                "end_offset": 27,
+                "excerpt_sha256": "sha256:b2b8bd3c92a3af6fff78a203ed33ec8dd7811e60cb9ad2f41018a56c14153ce5"
+              }
+            ]
+          },
+          {
+            "step_id": "team_43a3623bd7fc45a6a9c752b3c924b82d.2",
+            "parent_step_id": "team_43a3623bd7fc45a6a9c752b3c924b82d.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 21,
+            "status": "sufficient",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 5,
+            "limit": 16,
+            "context_bytes": 412,
+            "source_ids": [
+              "crowded-preference-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_9cf41916f74e44d2abae173486a761b8",
+            "generation": 5,
+            "context_sha256": "sha256:be676561b240768ff113cfea8951603b9a1d0c714ac36faba5b18cf6191222e3",
+            "provenance": [
+              {
+                "record_id": "rec_47821e68f8994db6aca69de7e3916142",
+                "source_id": "crowded-preference-source-2",
+                "start_offset": 0,
+                "end_offset": 27,
+                "excerpt_sha256": "sha256:b2b8bd3c92a3af6fff78a203ed33ec8dd7811e60cb9ad2f41018a56c14153ce5"
+              }
+            ]
+          },
+          {
+            "step_id": "team_43a3623bd7fc45a6a9c752b3c924b82d.3",
+            "parent_step_id": "team_43a3623bd7fc45a6a9c752b3c924b82d.2",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reviewer",
+            "elapsed_ms": 505,
+            "reason": "Select a supporting quote from the expanded evidence.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_47821e68f8994db6aca69de7e3916142\" kind=\"atomic_fact\">\nuser favorite city: Bergen (positive)\nSources: crowded-preference-source-2\n</memory>\n</atmem-context>\n",
+            "context_bytes": 412,
+            "input_tokens": 206,
+            "output_tokens": 9,
+            "status": "returned",
+            "quote": "Bergen",
+            "receipt_id": "ctxr_94559fa3845d48c0ae5bc3849928953b",
+            "provenance": [
+              {
+                "record_id": "rec_47821e68f8994db6aca69de7e3916142",
+                "source_id": "crowded-preference-source-2",
+                "start_offset": 0,
+                "end_offset": 27,
+                "excerpt_sha256": "sha256:b2b8bd3c92a3af6fff78a203ed33ec8dd7811e60cb9ad2f41018a56c14153ce5"
+              }
+            ],
+            "generation": 5,
+            "preparation_id": "prep_9cf41916f74e44d2abae173486a761b8",
+            "source_ids": [
+              "crowded-preference-source-2"
+            ]
+          },
+          {
+            "step_id": "team_43a3623bd7fc45a6a9c752b3c924b82d.4",
+            "parent_step_id": "team_43a3623bd7fc45a6a9c752b3c924b82d.3",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 622,
+            "reason": "Read the reviewed quote.",
+            "evidence": "Bergen",
+            "context_bytes": 6,
+            "input_tokens": 84,
+            "output_tokens": 9,
+            "status": "returned",
+            "quote": "Bergen",
+            "provenance": [
+              {
+                "record_id": "rec_47821e68f8994db6aca69de7e3916142",
+                "source_id": "crowded-preference-source-2",
+                "start_offset": 0,
+                "end_offset": 27,
+                "excerpt_sha256": "sha256:b2b8bd3c92a3af6fff78a203ed33ec8dd7811e60cb9ad2f41018a56c14153ce5"
+              }
+            ],
+            "generation": 5,
+            "preparation_id": "prep_9cf41916f74e44d2abae173486a761b8",
+            "source_ids": [
+              "crowded-preference-source-2"
+            ]
+          }
+        ],
+        "model_calls": 2,
+        "input_tokens": 290,
+        "output_tokens": 18,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": "Bergen",
+        "source_ids": [
+          "crowded-preference-source-2"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 1669,
+        "typed_rows_read": 23,
+        "unique_typed_records_read": 5,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "crowded-preference",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_e27e13fc8ec64beab549f66a3a9f4cfa",
+        "started_at": "2026-11-28T10:54:44.245873+00:00",
+        "question": "What is my favorite city?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "single",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_e27e13fc8ec64beab549f66a3a9f4cfa.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 545,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 4,
+            "limit": 4,
+            "context_bytes": 412,
+            "source_ids": [
+              "crowded-preference-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_d44446422f784bf396a45567929eee1b",
+            "generation": 5,
+            "context_sha256": "sha256:be676561b240768ff113cfea8951603b9a1d0c714ac36faba5b18cf6191222e3",
+            "provenance": [
+              {
+                "record_id": "rec_47821e68f8994db6aca69de7e3916142",
+                "source_id": "crowded-preference-source-2",
+                "start_offset": 0,
+                "end_offset": 27,
+                "excerpt_sha256": "sha256:b2b8bd3c92a3af6fff78a203ed33ec8dd7811e60cb9ad2f41018a56c14153ce5"
+              }
+            ]
+          },
+          {
+            "step_id": "team_e27e13fc8ec64beab549f66a3a9f4cfa.2",
+            "parent_step_id": "team_e27e13fc8ec64beab549f66a3a9f4cfa.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 1464,
+            "reason": "Read the scoped evidence directly.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_47821e68f8994db6aca69de7e3916142\" kind=\"atomic_fact\">\nuser favorite city: Bergen (positive)\nSources: crowded-preference-source-2\n</memory>\n</atmem-context>\n",
+            "context_bytes": 412,
+            "input_tokens": 212,
+            "output_tokens": 9,
+            "status": "returned",
+            "quote": "Bergen",
+            "receipt_id": "ctxr_1f601ebc7bbc4c4b8c88f98e555c49ba",
+            "provenance": [
+              {
+                "record_id": "rec_47821e68f8994db6aca69de7e3916142",
+                "source_id": "crowded-preference-source-2",
+                "start_offset": 0,
+                "end_offset": 27,
+                "excerpt_sha256": "sha256:b2b8bd3c92a3af6fff78a203ed33ec8dd7811e60cb9ad2f41018a56c14153ce5"
+              }
+            ],
+            "generation": 5,
+            "preparation_id": "prep_d44446422f784bf396a45567929eee1b",
+            "source_ids": [
+              "crowded-preference-source-2"
+            ]
+          }
+        ],
+        "model_calls": 1,
+        "input_tokens": 212,
+        "output_tokens": 9,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": "Bergen",
+        "source_ids": [
+          "crowded-preference-source-2"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 2084,
+        "typed_rows_read": 9,
+        "unique_typed_records_read": 4,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "simple-assignment",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_3000387408864a008fb151740a73107f",
+        "started_at": "2026-11-28T10:54:47.693912+00:00",
+        "question": "What is my release owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "adaptive",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_3000387408864a008fb151740a73107f.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 221,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 410,
+            "source_ids": [
+              "simple-assignment-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_70e6b6dc39814a5a9610cee55214054e",
+            "generation": 1,
+            "context_sha256": "sha256:da713c36ebd8555cc138e26662f46bb8457edf451bfbf4f68bd6145ef92ff96a",
+            "provenance": [
+              {
+                "record_id": "rec_3a548be593d241b5887a34624ae18507",
+                "source_id": "simple-assignment-source-1",
+                "start_offset": 0,
+                "end_offset": 26,
+                "excerpt_sha256": "sha256:924d7dd4ba021a6b4818f3ef4f11414fec780be6bbaae4d035e737cf879ec308"
+              }
+            ]
+          },
+          {
+            "step_id": "team_3000387408864a008fb151740a73107f.2",
+            "parent_step_id": "team_3000387408864a008fb151740a73107f.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 1328,
+            "reason": "Read the scoped evidence directly.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_3a548be593d241b5887a34624ae18507\" kind=\"atomic_fact\">\nuser release owner: Anika (positive)\nSources: simple-assignment-source-1\n</memory>\n</atmem-context>\n",
+            "context_bytes": 410,
+            "input_tokens": 215,
+            "output_tokens": 7,
+            "status": "returned",
+            "quote": "Anika",
+            "receipt_id": "ctxr_960985b03b7d450eafb41b2644b97bfe",
+            "provenance": [
+              {
+                "record_id": "rec_3a548be593d241b5887a34624ae18507",
+                "source_id": "simple-assignment-source-1",
+                "start_offset": 0,
+                "end_offset": 26,
+                "excerpt_sha256": "sha256:924d7dd4ba021a6b4818f3ef4f11414fec780be6bbaae4d035e737cf879ec308"
+              }
+            ],
+            "generation": 1,
+            "preparation_id": "prep_70e6b6dc39814a5a9610cee55214054e",
+            "source_ids": [
+              "simple-assignment-source-1"
+            ]
+          }
+        ],
+        "model_calls": 1,
+        "input_tokens": 215,
+        "output_tokens": 7,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": "Anika",
+        "source_ids": [
+          "simple-assignment-source-1"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 1564,
+        "typed_rows_read": 3,
+        "unique_typed_records_read": 1,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "simple-assignment",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_881030cb56ba456ca4d25383e3934184",
+        "started_at": "2026-11-28T10:54:49.322191+00:00",
+        "question": "What is my release owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "single",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_881030cb56ba456ca4d25383e3934184.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 33,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 410,
+            "source_ids": [
+              "simple-assignment-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_51f1777d2bfe480984ce778934590818",
+            "generation": 1,
+            "context_sha256": "sha256:da713c36ebd8555cc138e26662f46bb8457edf451bfbf4f68bd6145ef92ff96a",
+            "provenance": [
+              {
+                "record_id": "rec_3a548be593d241b5887a34624ae18507",
+                "source_id": "simple-assignment-source-1",
+                "start_offset": 0,
+                "end_offset": 26,
+                "excerpt_sha256": "sha256:924d7dd4ba021a6b4818f3ef4f11414fec780be6bbaae4d035e737cf879ec308"
+              }
+            ]
+          },
+          {
+            "step_id": "team_881030cb56ba456ca4d25383e3934184.2",
+            "parent_step_id": "team_881030cb56ba456ca4d25383e3934184.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 532,
+            "reason": "Read the scoped evidence directly.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_3a548be593d241b5887a34624ae18507\" kind=\"atomic_fact\">\nuser release owner: Anika (positive)\nSources: simple-assignment-source-1\n</memory>\n</atmem-context>\n",
+            "context_bytes": 410,
+            "input_tokens": 215,
+            "output_tokens": 7,
+            "status": "returned",
+            "quote": "Anika",
+            "receipt_id": "ctxr_aa51fab052784882a245d75533ab938b",
+            "provenance": [
+              {
+                "record_id": "rec_3a548be593d241b5887a34624ae18507",
+                "source_id": "simple-assignment-source-1",
+                "start_offset": 0,
+                "end_offset": 26,
+                "excerpt_sha256": "sha256:924d7dd4ba021a6b4818f3ef4f11414fec780be6bbaae4d035e737cf879ec308"
+              }
+            ],
+            "generation": 1,
+            "preparation_id": "prep_51f1777d2bfe480984ce778934590818",
+            "source_ids": [
+              "simple-assignment-source-1"
+            ]
+          }
+        ],
+        "model_calls": 1,
+        "input_tokens": 215,
+        "output_tokens": 7,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": "Anika",
+        "source_ids": [
+          "simple-assignment-source-1"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 579,
+        "typed_rows_read": 3,
+        "unique_typed_records_read": 1,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "simple-assignment",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_c4f78f9fc9924508acee3c55c08399e6",
+        "started_at": "2026-11-28T10:54:49.930213+00:00",
+        "question": "What is my release owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "fixed",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_c4f78f9fc9924508acee3c55c08399e6.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 22,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 410,
+            "source_ids": [
+              "simple-assignment-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_ce1bdcde497b45bfbe6dc9b17528eb73",
+            "generation": 1,
+            "context_sha256": "sha256:da713c36ebd8555cc138e26662f46bb8457edf451bfbf4f68bd6145ef92ff96a",
+            "provenance": [
+              {
+                "record_id": "rec_3a548be593d241b5887a34624ae18507",
+                "source_id": "simple-assignment-source-1",
+                "start_offset": 0,
+                "end_offset": 26,
+                "excerpt_sha256": "sha256:924d7dd4ba021a6b4818f3ef4f11414fec780be6bbaae4d035e737cf879ec308"
+              }
+            ]
+          },
+          {
+            "step_id": "team_c4f78f9fc9924508acee3c55c08399e6.2",
+            "parent_step_id": "team_c4f78f9fc9924508acee3c55c08399e6.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 12,
+            "status": "sufficient",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 1,
+            "limit": 16,
+            "context_bytes": 410,
+            "source_ids": [
+              "simple-assignment-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_85a7b56818b34cd79dd1336ee9ecabd7",
+            "generation": 1,
+            "context_sha256": "sha256:da713c36ebd8555cc138e26662f46bb8457edf451bfbf4f68bd6145ef92ff96a",
+            "provenance": [
+              {
+                "record_id": "rec_3a548be593d241b5887a34624ae18507",
+                "source_id": "simple-assignment-source-1",
+                "start_offset": 0,
+                "end_offset": 26,
+                "excerpt_sha256": "sha256:924d7dd4ba021a6b4818f3ef4f11414fec780be6bbaae4d035e737cf879ec308"
+              }
+            ]
+          },
+          {
+            "step_id": "team_c4f78f9fc9924508acee3c55c08399e6.3",
+            "parent_step_id": "team_c4f78f9fc9924508acee3c55c08399e6.2",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reviewer",
+            "elapsed_ms": 1662,
+            "reason": "Select a supporting quote from the expanded evidence.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_3a548be593d241b5887a34624ae18507\" kind=\"atomic_fact\">\nuser release owner: Anika (positive)\nSources: simple-assignment-source-1\n</memory>\n</atmem-context>\n",
+            "context_bytes": 410,
+            "input_tokens": 209,
+            "output_tokens": 15,
+            "status": "returned",
+            "quote": "user release owner: Anika (positive)",
+            "receipt_id": "ctxr_0f702323ead3471cad7a47f5dbad4284",
+            "provenance": [
+              {
+                "record_id": "rec_3a548be593d241b5887a34624ae18507",
+                "source_id": "simple-assignment-source-1",
+                "start_offset": 0,
+                "end_offset": 26,
+                "excerpt_sha256": "sha256:924d7dd4ba021a6b4818f3ef4f11414fec780be6bbaae4d035e737cf879ec308"
+              }
+            ],
+            "generation": 1,
+            "preparation_id": "prep_85a7b56818b34cd79dd1336ee9ecabd7",
+            "source_ids": [
+              "simple-assignment-source-1"
+            ]
+          },
+          {
+            "step_id": "team_c4f78f9fc9924508acee3c55c08399e6.4",
+            "parent_step_id": "team_c4f78f9fc9924508acee3c55c08399e6.3",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 602,
+            "reason": "Read the reviewed quote.",
+            "evidence": "user release owner: Anika (positive)",
+            "context_bytes": 36,
+            "input_tokens": 90,
+            "output_tokens": 8,
+            "status": "returned",
+            "quote": "Anika",
+            "provenance": [
+              {
+                "record_id": "rec_3a548be593d241b5887a34624ae18507",
+                "source_id": "simple-assignment-source-1",
+                "start_offset": 0,
+                "end_offset": 26,
+                "excerpt_sha256": "sha256:924d7dd4ba021a6b4818f3ef4f11414fec780be6bbaae4d035e737cf879ec308"
+              }
+            ],
+            "generation": 1,
+            "preparation_id": "prep_85a7b56818b34cd79dd1336ee9ecabd7",
+            "source_ids": [
+              "simple-assignment-source-1"
+            ]
+          }
+        ],
+        "model_calls": 2,
+        "input_tokens": 299,
+        "output_tokens": 23,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": "Anika",
+        "source_ids": [
+          "simple-assignment-source-1"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 2325,
+        "typed_rows_read": 6,
+        "unique_typed_records_read": 1,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "competing-assignments",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_d05118f73f2c49278a3cf8f3ec7c779e",
+        "started_at": "2026-11-28T10:54:53.614496+00:00",
+        "question": "What is my Cedar build owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "single",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_d05118f73f2c49278a3cf8f3ec7c779e.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 98,
+            "status": "contradictory",
+            "reason": "Scoped memory lookup.",
+            "candidates": 2,
+            "limit": 4,
+            "context_bytes": 580,
+            "source_ids": [
+              "competing-assignments-source-1",
+              "competing-assignments-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "conflicting_current_evidence"
+            ],
+            "preparation_id": "prep_ecc188f5540f4930bacba6d0c9ded96d",
+            "generation": 2,
+            "context_sha256": "sha256:c475974e0ffe0104c1b717d2deb3994d37565fbc2c6b3d47d560c6687c2602e1",
+            "provenance": [
+              {
+                "record_id": "rec_10710a55d313455ebd7208dd329276c5",
+                "source_id": "competing-assignments-source-1",
+                "start_offset": 0,
+                "end_offset": 29,
+                "excerpt_sha256": "sha256:c442ab28ce5a81e2da1877f1e31eeb292281f8ab92def9f3c1cf182f690530b4"
+              },
+              {
+                "record_id": "rec_56951eca57564ed39d008f2f408cd9ec",
+                "source_id": "competing-assignments-source-2",
+                "start_offset": 0,
+                "end_offset": 29,
+                "excerpt_sha256": "sha256:54cabe2ac8b659c2dc8e763ffab72c60872322cca2d6c8e4c1fc066cfd0ffa47"
+              }
+            ]
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is contradictory.",
+        "elapsed_ms": 98,
+        "typed_rows_read": 5,
+        "unique_typed_records_read": 2,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "competing-assignments",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_53e1bb9b7e2741a0b883e7cc1f26edc8",
+        "started_at": "2026-11-28T10:54:53.772988+00:00",
+        "question": "What is my Cedar build owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "fixed",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_53e1bb9b7e2741a0b883e7cc1f26edc8.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 110,
+            "status": "contradictory",
+            "reason": "Scoped memory lookup.",
+            "candidates": 2,
+            "limit": 4,
+            "context_bytes": 580,
+            "source_ids": [
+              "competing-assignments-source-1",
+              "competing-assignments-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "conflicting_current_evidence"
+            ],
+            "preparation_id": "prep_6f86cc3623014ea8bd90eccf3284d7a4",
+            "generation": 2,
+            "context_sha256": "sha256:c475974e0ffe0104c1b717d2deb3994d37565fbc2c6b3d47d560c6687c2602e1",
+            "provenance": [
+              {
+                "record_id": "rec_10710a55d313455ebd7208dd329276c5",
+                "source_id": "competing-assignments-source-1",
+                "start_offset": 0,
+                "end_offset": 29,
+                "excerpt_sha256": "sha256:c442ab28ce5a81e2da1877f1e31eeb292281f8ab92def9f3c1cf182f690530b4"
+              },
+              {
+                "record_id": "rec_56951eca57564ed39d008f2f408cd9ec",
+                "source_id": "competing-assignments-source-2",
+                "start_offset": 0,
+                "end_offset": 29,
+                "excerpt_sha256": "sha256:54cabe2ac8b659c2dc8e763ffab72c60872322cca2d6c8e4c1fc066cfd0ffa47"
+              }
+            ]
+          },
+          {
+            "step_id": "team_53e1bb9b7e2741a0b883e7cc1f26edc8.2",
+            "parent_step_id": "team_53e1bb9b7e2741a0b883e7cc1f26edc8.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 18,
+            "status": "contradictory",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 2,
+            "limit": 16,
+            "context_bytes": 580,
+            "source_ids": [
+              "competing-assignments-source-1",
+              "competing-assignments-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "conflicting_current_evidence"
+            ],
+            "preparation_id": "prep_cb9e30f315cf40eaae1b05651239ddff",
+            "generation": 2,
+            "context_sha256": "sha256:c475974e0ffe0104c1b717d2deb3994d37565fbc2c6b3d47d560c6687c2602e1",
+            "provenance": [
+              {
+                "record_id": "rec_10710a55d313455ebd7208dd329276c5",
+                "source_id": "competing-assignments-source-1",
+                "start_offset": 0,
+                "end_offset": 29,
+                "excerpt_sha256": "sha256:c442ab28ce5a81e2da1877f1e31eeb292281f8ab92def9f3c1cf182f690530b4"
+              },
+              {
+                "record_id": "rec_56951eca57564ed39d008f2f408cd9ec",
+                "source_id": "competing-assignments-source-2",
+                "start_offset": 0,
+                "end_offset": 29,
+                "excerpt_sha256": "sha256:54cabe2ac8b659c2dc8e763ffab72c60872322cca2d6c8e4c1fc066cfd0ffa47"
+              }
+            ]
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is contradictory.",
+        "elapsed_ms": 128,
+        "typed_rows_read": 11,
+        "unique_typed_records_read": 2,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "competing-assignments",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_d0c7d3f9e81a45749e6f82012811df64",
+        "started_at": "2026-11-28T10:54:53.965136+00:00",
+        "question": "What is my Cedar build owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "adaptive",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_d0c7d3f9e81a45749e6f82012811df64.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 59,
+            "status": "contradictory",
+            "reason": "Scoped memory lookup.",
+            "candidates": 2,
+            "limit": 4,
+            "context_bytes": 580,
+            "source_ids": [
+              "competing-assignments-source-1",
+              "competing-assignments-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "conflicting_current_evidence"
+            ],
+            "preparation_id": "prep_10f0f68b14bd401688571edb7eef48cc",
+            "generation": 2,
+            "context_sha256": "sha256:c475974e0ffe0104c1b717d2deb3994d37565fbc2c6b3d47d560c6687c2602e1",
+            "provenance": [
+              {
+                "record_id": "rec_10710a55d313455ebd7208dd329276c5",
+                "source_id": "competing-assignments-source-1",
+                "start_offset": 0,
+                "end_offset": 29,
+                "excerpt_sha256": "sha256:c442ab28ce5a81e2da1877f1e31eeb292281f8ab92def9f3c1cf182f690530b4"
+              },
+              {
+                "record_id": "rec_56951eca57564ed39d008f2f408cd9ec",
+                "source_id": "competing-assignments-source-2",
+                "start_offset": 0,
+                "end_offset": 29,
+                "excerpt_sha256": "sha256:54cabe2ac8b659c2dc8e763ffab72c60872322cca2d6c8e4c1fc066cfd0ffa47"
+              }
+            ]
+          },
+          {
+            "step_id": "team_d0c7d3f9e81a45749e6f82012811df64.2",
+            "parent_step_id": "team_d0c7d3f9e81a45749e6f82012811df64.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 264,
+            "status": "contradictory",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 2,
+            "limit": 16,
+            "context_bytes": 580,
+            "source_ids": [
+              "competing-assignments-source-1",
+              "competing-assignments-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "conflicting_current_evidence"
+            ],
+            "preparation_id": "prep_0e1573fa5ba64cf598022f78a47ecb2f",
+            "generation": 2,
+            "context_sha256": "sha256:c475974e0ffe0104c1b717d2deb3994d37565fbc2c6b3d47d560c6687c2602e1",
+            "provenance": [
+              {
+                "record_id": "rec_10710a55d313455ebd7208dd329276c5",
+                "source_id": "competing-assignments-source-1",
+                "start_offset": 0,
+                "end_offset": 29,
+                "excerpt_sha256": "sha256:c442ab28ce5a81e2da1877f1e31eeb292281f8ab92def9f3c1cf182f690530b4"
+              },
+              {
+                "record_id": "rec_56951eca57564ed39d008f2f408cd9ec",
+                "source_id": "competing-assignments-source-2",
+                "start_offset": 0,
+                "end_offset": 29,
+                "excerpt_sha256": "sha256:54cabe2ac8b659c2dc8e763ffab72c60872322cca2d6c8e4c1fc066cfd0ffa47"
+              }
+            ]
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is contradictory.",
+        "elapsed_ms": 323,
+        "typed_rows_read": 11,
+        "unique_typed_records_read": 2,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "expired-assignment",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_da788e059f3b4377849a5ca8d0bebee9",
+        "started_at": "2026-11-28T10:54:54.722921+00:00",
+        "question": "What is my Vela incident owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "fixed",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_da788e059f3b4377849a5ca8d0bebee9.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 327,
+            "status": "stale",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 412,
+            "source_ids": [
+              "expired-assignment-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "only_expired_evidence"
+            ],
+            "preparation_id": "prep_a5bc56bad76b40569f53c2cf8c5beef0",
+            "generation": 1,
+            "context_sha256": "sha256:8fae8e569e4e62dd2742bc9623388bbbb59b7317813e12e94bdb5730bfd42da9",
+            "provenance": [
+              {
+                "record_id": "rec_4d2d07818a694371bc46589a95471e25",
+                "source_id": "expired-assignment-source-1",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:ecff51d5e06ce681796f2a3d7790f6061731a5354f33b3373335aa1538b0eecf"
+              }
+            ]
+          },
+          {
+            "step_id": "team_da788e059f3b4377849a5ca8d0bebee9.2",
+            "parent_step_id": "team_da788e059f3b4377849a5ca8d0bebee9.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 19,
+            "status": "stale",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 1,
+            "limit": 16,
+            "context_bytes": 412,
+            "source_ids": [
+              "expired-assignment-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "only_expired_evidence"
+            ],
+            "preparation_id": "prep_30318a399a4947c6b8c1af1abac159f3",
+            "generation": 1,
+            "context_sha256": "sha256:8fae8e569e4e62dd2742bc9623388bbbb59b7317813e12e94bdb5730bfd42da9",
+            "provenance": [
+              {
+                "record_id": "rec_4d2d07818a694371bc46589a95471e25",
+                "source_id": "expired-assignment-source-1",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:ecff51d5e06ce681796f2a3d7790f6061731a5354f33b3373335aa1538b0eecf"
+              }
+            ]
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is stale.",
+        "elapsed_ms": 346,
+        "typed_rows_read": 6,
+        "unique_typed_records_read": 1,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "expired-assignment",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_a55e1b0177114f93b7c135b6c0878d3e",
+        "started_at": "2026-11-28T10:54:55.089936+00:00",
+        "question": "What is my Vela incident owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "adaptive",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_a55e1b0177114f93b7c135b6c0878d3e.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 16,
+            "status": "stale",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 412,
+            "source_ids": [
+              "expired-assignment-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "only_expired_evidence"
+            ],
+            "preparation_id": "prep_1066fde7e6924dbea33eb29cdbeb1c97",
+            "generation": 1,
+            "context_sha256": "sha256:8fae8e569e4e62dd2742bc9623388bbbb59b7317813e12e94bdb5730bfd42da9",
+            "provenance": [
+              {
+                "record_id": "rec_4d2d07818a694371bc46589a95471e25",
+                "source_id": "expired-assignment-source-1",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:ecff51d5e06ce681796f2a3d7790f6061731a5354f33b3373335aa1538b0eecf"
+              }
+            ]
+          },
+          {
+            "step_id": "team_a55e1b0177114f93b7c135b6c0878d3e.2",
+            "parent_step_id": "team_a55e1b0177114f93b7c135b6c0878d3e.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 21,
+            "status": "stale",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 1,
+            "limit": 16,
+            "context_bytes": 412,
+            "source_ids": [
+              "expired-assignment-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "only_expired_evidence"
+            ],
+            "preparation_id": "prep_eac46ed7f2df49eab8cf7615d7097eaa",
+            "generation": 1,
+            "context_sha256": "sha256:8fae8e569e4e62dd2742bc9623388bbbb59b7317813e12e94bdb5730bfd42da9",
+            "provenance": [
+              {
+                "record_id": "rec_4d2d07818a694371bc46589a95471e25",
+                "source_id": "expired-assignment-source-1",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:ecff51d5e06ce681796f2a3d7790f6061731a5354f33b3373335aa1538b0eecf"
+              }
+            ]
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is stale.",
+        "elapsed_ms": 37,
+        "typed_rows_read": 6,
+        "unique_typed_records_read": 1,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "expired-assignment",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_ef14922694ef44c682123e8c4d177a2a",
+        "started_at": "2026-11-28T10:54:55.152547+00:00",
+        "question": "What is my Vela incident owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "single",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_ef14922694ef44c682123e8c4d177a2a.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 182,
+            "status": "stale",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 412,
+            "source_ids": [
+              "expired-assignment-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "only_expired_evidence"
+            ],
+            "preparation_id": "prep_8c9fb3dce63a4b8fad8d7503135c9a88",
+            "generation": 1,
+            "context_sha256": "sha256:8fae8e569e4e62dd2742bc9623388bbbb59b7317813e12e94bdb5730bfd42da9",
+            "provenance": [
+              {
+                "record_id": "rec_4d2d07818a694371bc46589a95471e25",
+                "source_id": "expired-assignment-source-1",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:ecff51d5e06ce681796f2a3d7790f6061731a5354f33b3373335aa1538b0eecf"
+              }
+            ]
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is stale.",
+        "elapsed_ms": 182,
+        "typed_rows_read": 3,
+        "unique_typed_records_read": 1,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "similar-name-missing",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_8e6a84361c434282a76ff3e58ba84021",
+        "started_at": "2026-11-28T10:54:56.009894+00:00",
+        "question": "What is my Nacre routing code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "adaptive",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_8e6a84361c434282a76ff3e58ba84021.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 23,
+            "status": "partial",
+            "reason": "Scoped memory lookup.",
+            "candidates": 2,
+            "limit": 4,
+            "context_bytes": 619,
+            "source_ids": [
+              "similar-name-missing-source-1",
+              "similar-name-missing-source-2"
+            ],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "authorized_lexical_fallback_unverified"
+            ],
+            "preparation_id": "prep_9e0db20f7b154c779e6eb2522bbfc51a",
+            "generation": 2,
+            "context_sha256": "sha256:d4bf9628fd039218ff029b6a6bde4ccffaf236d7c7ea3fba52534f57d9dee279",
+            "provenance": [
+              {
+                "record_id": "rec_0e9a2e75f19c41dbbdb4ef6d2b5be7d8",
+                "source_id": "similar-name-missing-source-1",
+                "start_offset": 0,
+                "end_offset": 31,
+                "excerpt_sha256": "sha256:1636ce10ba168a97950590ee8309f272e048df99602290bc894ae688c5bb4e16"
+              },
+              {
+                "record_id": "rec_524dc815d2324d7fb086bb48b172e99b",
+                "source_id": "similar-name-missing-source-2",
+                "start_offset": 0,
+                "end_offset": 31,
+                "excerpt_sha256": "sha256:98004cee016ab79a5067edb9a44dd142967311ae2e2e435f297ec1d0f9e5c8ba"
+              }
+            ]
+          },
+          {
+            "step_id": "team_8e6a84361c434282a76ff3e58ba84021.2",
+            "parent_step_id": "team_8e6a84361c434282a76ff3e58ba84021.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 269,
+            "status": "partial",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 2,
+            "limit": 16,
+            "context_bytes": 619,
+            "source_ids": [
+              "similar-name-missing-source-1",
+              "similar-name-missing-source-2"
+            ],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "authorized_lexical_fallback_unverified"
+            ],
+            "preparation_id": "prep_eb0a660dc5c34659a01e5133e8faed0d",
+            "generation": 2,
+            "context_sha256": "sha256:d4bf9628fd039218ff029b6a6bde4ccffaf236d7c7ea3fba52534f57d9dee279",
+            "provenance": [
+              {
+                "record_id": "rec_0e9a2e75f19c41dbbdb4ef6d2b5be7d8",
+                "source_id": "similar-name-missing-source-1",
+                "start_offset": 0,
+                "end_offset": 31,
+                "excerpt_sha256": "sha256:1636ce10ba168a97950590ee8309f272e048df99602290bc894ae688c5bb4e16"
+              },
+              {
+                "record_id": "rec_524dc815d2324d7fb086bb48b172e99b",
+                "source_id": "similar-name-missing-source-2",
+                "start_offset": 0,
+                "end_offset": 31,
+                "excerpt_sha256": "sha256:98004cee016ab79a5067edb9a44dd142967311ae2e2e435f297ec1d0f9e5c8ba"
+              }
+            ]
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is partial.",
+        "elapsed_ms": 293,
+        "typed_rows_read": 11,
+        "unique_typed_records_read": 2,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "similar-name-missing",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_fa161b19d5dc41c6a48a089bb80a77c8",
+        "started_at": "2026-11-28T10:54:56.403769+00:00",
+        "question": "What is my Nacre routing code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "single",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_fa161b19d5dc41c6a48a089bb80a77c8.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 20,
+            "status": "partial",
+            "reason": "Scoped memory lookup.",
+            "candidates": 2,
+            "limit": 4,
+            "context_bytes": 619,
+            "source_ids": [
+              "similar-name-missing-source-1",
+              "similar-name-missing-source-2"
+            ],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "authorized_lexical_fallback_unverified"
+            ],
+            "preparation_id": "prep_aac5a27ed41743b9b9042be131225d7e",
+            "generation": 2,
+            "context_sha256": "sha256:d4bf9628fd039218ff029b6a6bde4ccffaf236d7c7ea3fba52534f57d9dee279",
+            "provenance": [
+              {
+                "record_id": "rec_0e9a2e75f19c41dbbdb4ef6d2b5be7d8",
+                "source_id": "similar-name-missing-source-1",
+                "start_offset": 0,
+                "end_offset": 31,
+                "excerpt_sha256": "sha256:1636ce10ba168a97950590ee8309f272e048df99602290bc894ae688c5bb4e16"
+              },
+              {
+                "record_id": "rec_524dc815d2324d7fb086bb48b172e99b",
+                "source_id": "similar-name-missing-source-2",
+                "start_offset": 0,
+                "end_offset": 31,
+                "excerpt_sha256": "sha256:98004cee016ab79a5067edb9a44dd142967311ae2e2e435f297ec1d0f9e5c8ba"
+              }
+            ]
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is partial.",
+        "elapsed_ms": 20,
+        "typed_rows_read": 5,
+        "unique_typed_records_read": 2,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "similar-name-missing",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_dc5f6c2795a7417189f6f59a69a094d6",
+        "started_at": "2026-11-28T10:54:56.442296+00:00",
+        "question": "What is my Nacre routing code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "fixed",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_dc5f6c2795a7417189f6f59a69a094d6.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 22,
+            "status": "partial",
+            "reason": "Scoped memory lookup.",
+            "candidates": 2,
+            "limit": 4,
+            "context_bytes": 619,
+            "source_ids": [
+              "similar-name-missing-source-1",
+              "similar-name-missing-source-2"
+            ],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "authorized_lexical_fallback_unverified"
+            ],
+            "preparation_id": "prep_1e287ef0d1e349d0afe6203094c7e717",
+            "generation": 2,
+            "context_sha256": "sha256:d4bf9628fd039218ff029b6a6bde4ccffaf236d7c7ea3fba52534f57d9dee279",
+            "provenance": [
+              {
+                "record_id": "rec_0e9a2e75f19c41dbbdb4ef6d2b5be7d8",
+                "source_id": "similar-name-missing-source-1",
+                "start_offset": 0,
+                "end_offset": 31,
+                "excerpt_sha256": "sha256:1636ce10ba168a97950590ee8309f272e048df99602290bc894ae688c5bb4e16"
+              },
+              {
+                "record_id": "rec_524dc815d2324d7fb086bb48b172e99b",
+                "source_id": "similar-name-missing-source-2",
+                "start_offset": 0,
+                "end_offset": 31,
+                "excerpt_sha256": "sha256:98004cee016ab79a5067edb9a44dd142967311ae2e2e435f297ec1d0f9e5c8ba"
+              }
+            ]
+          },
+          {
+            "step_id": "team_dc5f6c2795a7417189f6f59a69a094d6.2",
+            "parent_step_id": "team_dc5f6c2795a7417189f6f59a69a094d6.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 19,
+            "status": "partial",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 2,
+            "limit": 16,
+            "context_bytes": 619,
+            "source_ids": [
+              "similar-name-missing-source-1",
+              "similar-name-missing-source-2"
+            ],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "authorized_lexical_fallback_unverified"
+            ],
+            "preparation_id": "prep_f76b1cbcd3844463808f4ad57fa0f644",
+            "generation": 2,
+            "context_sha256": "sha256:d4bf9628fd039218ff029b6a6bde4ccffaf236d7c7ea3fba52534f57d9dee279",
+            "provenance": [
+              {
+                "record_id": "rec_0e9a2e75f19c41dbbdb4ef6d2b5be7d8",
+                "source_id": "similar-name-missing-source-1",
+                "start_offset": 0,
+                "end_offset": 31,
+                "excerpt_sha256": "sha256:1636ce10ba168a97950590ee8309f272e048df99602290bc894ae688c5bb4e16"
+              },
+              {
+                "record_id": "rec_524dc815d2324d7fb086bb48b172e99b",
+                "source_id": "similar-name-missing-source-2",
+                "start_offset": 0,
+                "end_offset": 31,
+                "excerpt_sha256": "sha256:98004cee016ab79a5067edb9a44dd142967311ae2e2e435f297ec1d0f9e5c8ba"
+              }
+            ]
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is partial.",
+        "elapsed_ms": 41,
+        "typed_rows_read": 11,
+        "unique_typed_records_read": 2,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "no-assignment",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_ccceb601948b45eeb1dcf94f070316bb",
+        "started_at": "2026-11-28T10:54:57.148429+00:00",
+        "question": "What is my Lumen release owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "single",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_ccceb601948b45eeb1dcf94f070316bb.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 69,
+            "status": "unsupported",
+            "reason": "Scoped memory lookup.",
+            "candidates": 0,
+            "limit": 4,
+            "context_bytes": 0,
+            "source_ids": [],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "no_answer_bearing_typed_evidence"
+            ],
+            "preparation_id": "prep_4c39b55145f44135ba1f7361123a938d",
+            "generation": 0,
+            "context_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "provenance": []
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is unsupported.",
+        "elapsed_ms": 69,
+        "typed_rows_read": 0,
+        "unique_typed_records_read": 0,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "no-assignment",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_02528e923755411bb6f3a46efa08f0f1",
+        "started_at": "2026-11-28T10:54:57.237554+00:00",
+        "question": "What is my Lumen release owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "fixed",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_02528e923755411bb6f3a46efa08f0f1.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 150,
+            "status": "unsupported",
+            "reason": "Scoped memory lookup.",
+            "candidates": 0,
+            "limit": 4,
+            "context_bytes": 0,
+            "source_ids": [],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "no_answer_bearing_typed_evidence"
+            ],
+            "preparation_id": "prep_fd11f0c698f3434b80b4e5fe06ef2862",
+            "generation": 0,
+            "context_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "provenance": []
+          },
+          {
+            "step_id": "team_02528e923755411bb6f3a46efa08f0f1.2",
+            "parent_step_id": "team_02528e923755411bb6f3a46efa08f0f1.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 10,
+            "status": "unsupported",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 0,
+            "limit": 16,
+            "context_bytes": 0,
+            "source_ids": [],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "no_answer_bearing_typed_evidence"
+            ],
+            "preparation_id": "prep_69d867d43ff44962ac4bcbe660d42532",
+            "generation": 0,
+            "context_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "provenance": []
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is unsupported.",
+        "elapsed_ms": 160,
+        "typed_rows_read": 0,
+        "unique_typed_records_read": 0,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "no-assignment",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_67c33b2d9e494fb3a999957155b0b25b",
+        "started_at": "2026-11-28T10:54:57.449688+00:00",
+        "question": "What is my Lumen release owner?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "adaptive",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_67c33b2d9e494fb3a999957155b0b25b.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 12,
+            "status": "unsupported",
+            "reason": "Scoped memory lookup.",
+            "candidates": 0,
+            "limit": 4,
+            "context_bytes": 0,
+            "source_ids": [],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "no_answer_bearing_typed_evidence"
+            ],
+            "preparation_id": "prep_84e1c14b587b421db71028909c8a2c53",
+            "generation": 0,
+            "context_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "provenance": []
+          },
+          {
+            "step_id": "team_67c33b2d9e494fb3a999957155b0b25b.2",
+            "parent_step_id": "team_67c33b2d9e494fb3a999957155b0b25b.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 6,
+            "status": "unsupported",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 0,
+            "limit": 16,
+            "context_bytes": 0,
+            "source_ids": [],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "no_answer_bearing_typed_evidence"
+            ],
+            "preparation_id": "prep_b0c5a090c0a04a24b0382e1e4c4cc10c",
+            "generation": 0,
+            "context_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "provenance": []
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is unsupported.",
+        "elapsed_ms": 18,
+        "typed_rows_read": 0,
+        "unique_typed_records_read": 0,
+        "raw_source_fetches": 0
+      }
+    }
+  ]
+}

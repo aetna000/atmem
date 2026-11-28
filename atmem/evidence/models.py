@@ -13,6 +13,7 @@ class CaptureMode(str, Enum):
 
 
 class EvidenceRole(str, Enum):
+    TEAM_HOST = "team_host"
     CONTINUITY_HOST = "continuity_host"
     CONTINUITY_COORDINATOR = "continuity_coordinator"
     VIEWER = "viewer"
@@ -38,6 +39,7 @@ class EvidenceOperation(str, Enum):
 
 
 _ROLE_OPERATIONS = {
+    EvidenceRole.TEAM_HOST: frozenset(),  # Only the portable handoff endpoint accepts this grant.
     EvidenceRole.CONTINUITY_HOST: frozenset({EvidenceOperation.CONTINUITY}),
     EvidenceRole.CONTINUITY_COORDINATOR: frozenset({EvidenceOperation.CONTINUITY}),
     # Viewer is deliberately metadata-only. The unprotected flight projection

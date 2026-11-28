@@ -49,6 +49,7 @@ class ControlDashboardServer(ThreadingHTTPServer):
         self.html = html
         self.csrf_token = secrets.token_urlsafe(32)
         self.hermes_requests = BoundedSemaphore(4)
+        self.team_requests = BoundedSemaphore(1)
         self.feedback_dashboard = feedback_dashboard
 
 
@@ -73,11 +74,11 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
-        if path == "/assets/atmem.jpg":
-            body = files("atmem.control").joinpath("assets/atmem.jpg").read_bytes()
+        if path in {"/assets/atmem.jpg", "/assets/team-project-example.png"}:
+            body = files("atmem.control").joinpath(path.lstrip("/")).read_bytes()
             self.send_response(HTTPStatus.OK)
             self._security_headers()
-            self.send_header("Content-Type", "image/jpeg")
+            self.send_header("Content-Type", "image/png" if path.endswith(".png") else "image/jpeg")
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "public, max-age=86400")
             self.end_headers()
@@ -92,6 +93,13 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "public, max-age=86400")
             self.end_headers()
             self.wfile.write(body)
+            return
+        if path == "/api/agent-team/examples":
+            examples = files("atmem.control").joinpath("assets/team-examples.json")
+            published = json.loads(examples.read_text(encoding="utf-8"))
+            demo = files("atmem.control").joinpath("assets/team-project-example.json")
+            published["project_example"] = json.loads(demo.read_text(encoding="utf-8"))
+            self._json(HTTPStatus.OK, published)
             return
         if path == "/api/session":
             self._json(HTTPStatus.OK, {"csrf_token": self.server.csrf_token})
@@ -660,7 +668,9 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             if not self._valid_host():
                 self._json(HTTPStatus.BAD_REQUEST, {"error": "invalid Host header"})
                 return
-            if path.startswith("/v1/hermes/"):
+            if path.startswith("/v1/agent-team/"):
+                self._team_post(path)
+            elif path.startswith("/v1/hermes/"):
                 self._hermes_post(path)
             else:
                 self._v1_post(path)
@@ -673,6 +683,22 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         try:
             body = self._body(maximum=180_000_000 if path == "/api/code" else 1_000_000)
             path = _canonical_api_path(urlparse(self.path).path)
+            if path == "/api/agent-team/history":
+                from atmem.control.agent_team import history
+                self._require_identity_session()
+                self._json(HTTPStatus.OK, history(self.server.manager, self._require_identity_session, body))
+                return
+            if path == "/api/agent-team/run":
+                from atmem.control.agent_team import execute
+                self._require_identity_session()
+                if not self.server.team_requests.acquire(blocking=False):
+                    self._json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "Another local team run is in progress."})
+                    return
+                try:
+                    self._json(HTTPStatus.OK, execute(self.server.manager, self._require_identity_session, body))
+                finally:
+                    self.server.team_requests.release()
+                return
             if path == "/api/feedback/action":
                 identity = self._require_identity_session()
                 if self.server.feedback_dashboard is None:
@@ -1125,6 +1151,8 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         token = authorization[len(prefix) :]
         evidence_principal = self.server.manager.evidence_service().authenticate(token)
         if evidence_principal is not None:
+            if evidence_principal.role.value == "team_host":
+                raise APIError("forbidden", "Team credentials are restricted to handoff operations.", status=403)
             return APIPrincipal(
                 principal_id=evidence_principal.principal_id,
                 role="agent",
@@ -1215,6 +1243,28 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
 
         except (OSError, RuntimeError) as exc:
             self._json(HTTPStatus.SERVICE_UNAVAILABLE, APIError("unavailable", str(exc), status=503).to_dict())
+
+    def _team_post(self, path):
+        from atmem.agent_team.portable import dispatch
+        authorization = self.headers.get("Authorization", "")
+        if not authorization.startswith("Bearer atmem_"):
+            self._json(HTTPStatus.UNAUTHORIZED, {"error":"A team host credential is required."})
+            return
+        try:
+            if self.headers.get("Origin") or self.headers.get("Transfer-Encoding"):
+                raise PermissionError("Direct local host requests are required.")
+            expected = self.headers.get("X-AtMem-Team-Host")
+            if not expected:
+                raise ValueError("A host binding is required.")
+            value = dispatch(self.server.manager, authorization[7:], path.removeprefix("/v1/agent-team/"),
+                             self._body(maximum=16_384), expected_host=expected)
+            self._json(HTTPStatus.OK, value)
+        except PermissionError:
+            self._json(HTTPStatus.FORBIDDEN, {"error":"Host or handoff unavailable in this workspace."})
+        except (ValueError, KeyError, TypeError) as exc:
+            self._json(HTTPStatus.BAD_REQUEST, {"error":str(exc)})
+        except (OSError, RuntimeError):
+            self._json(HTTPStatus.SERVICE_UNAVAILABLE, {"error":"Protected handoff storage unavailable."})
 
     def _hermes_post(self, path: str) -> None:
         from atmem.service import APIError

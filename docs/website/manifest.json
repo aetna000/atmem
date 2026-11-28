@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "2.3.16b3",
+  "version": "2.3.16",
   "sections": {
     "": "Documentation",
     "portfolio": "Product portfolio",
@@ -11,6 +11,11 @@
     "releases": "Releases"
   },
   "pages": [
+    {
+      "slug": "releases/2.3.16",
+      "title": "AtMem 2.3.16 — Portable agent handoffs",
+      "source": "docs/releases/v2.3.16.md"
+    },
     {
       "slug": "releases/2.3.16b3",
       "title": "AtMem 2.3.16b3 — Opt-in SDK context deduplication beta",

@@ -626,3 +626,72 @@ pre.jsonlog{max-width:100%;box-sizing:border-box;margin:8px 0;padding:16px;overf
 #feedbackExportForm textarea{min-height:5rem;resize:vertical;overflow-wrap:anywhere}
 #feedbackExport label{display:block;margin:.5rem 0}
 #feedbackExport summary{cursor:pointer;font-weight:650}
+
+/* Agent handoffs: evidence and metering for one observed execution. */
+.team-workspace{min-width:0}
+.team-workspace .team-heading{position:static;height:auto;background:none;border:0;backdrop-filter:none;z-index:auto;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin:0 0 18px}
+.team-heading h2,.team-caption h3,.team-result h3{margin:0}
+.team-heading p{margin:5px 0 0}
+.team-modes{display:flex;align-items:center;align-self:flex-start;border:1px solid var(--line);border-radius:10px;padding:3px;background:var(--bg)}
+.team-modes button{border:0;border-radius:7px;padding:6px 9px;background:transparent;color:var(--muted);font-size:12px;box-shadow:none;white-space:nowrap}
+.team-modes button[aria-pressed=true]{background:var(--card);color:var(--ink);box-shadow:0 1px 4px #10182824}
+.team-controls{display:flex;align-items:flex-end;flex-wrap:wrap;gap:12px;margin:0 0 12px}
+.team-controls label{display:grid;gap:5px;font-size:12px;font-weight:650;color:var(--muted)}
+.team-controls label:first-child,#teamQuestionLabel{flex:1 1 210px}
+.team-controls input,.team-controls select{box-sizing:border-box;min-width:0;width:100%;max-width:100%;min-height:36px;border:1px solid var(--line-strong);border-radius:8px;padding:6px 10px;font:inherit;font-size:13px;font-weight:550;color:var(--ink);background:var(--card)}
+#sessionsStage:has(>#agentTeam.settingsselected)>.settingsstagehead{display:none}
+#teamNotice{margin:0 0 14px}
+.team-result{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:18px;border-top:1px solid var(--line);padding:16px 0}
+.team-outcome{font-size:12px;font-weight:750;color:var(--brand);margin-bottom:5px}
+.team-result h3{font-size:clamp(19px,2vw,28px);line-height:1.15;overflow-wrap:anywhere}
+.team-result p,.team-inspector p{font-size:13px;color:var(--muted);margin:6px 0}
+.team-metrics,.team-facts{display:flex;flex-wrap:wrap;margin:0;gap:16px}
+.team-metrics>div{border-left:1px solid var(--line);padding-left:12px}
+.team-metrics dt,.team-facts dt{font-size:11px;font-weight:650;color:var(--muted)}
+.team-metrics dd,.team-facts dd{margin:3px 0 0;font-variant-numeric:tabular-nums}
+.team-metrics dd{font-size:18px;font-weight:720}
+.team-canvas{border:1px solid var(--line);border-radius:12px 12px 0 0;padding:15px;background-color:var(--bg);background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:13px 13px}
+.team-caption{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.team-caption h3{font-size:15px}.team-caption>span,.team-metadata{font-size:11px;color:var(--muted)}
+.team-graph{display:flex;align-items:stretch;gap:18px;margin:18px 0 6px}
+.team-node{position:relative;display:grid;flex:1 1 0;align-content:start;gap:4px;text-align:left;min-width:0;min-height:80px;padding:9px 10px;border:1px solid var(--line-strong);border-radius:9px;background:var(--card);color:var(--ink);box-shadow:var(--shadow);white-space:normal}
+.team-node b{font-size:14px;line-height:1.3}.team-node .team-node-meta{display:flex;align-items:center;gap:5px;color:var(--muted);font-size:10px;font-weight:650;letter-spacing:.02em}
+.team-node-meta .icon{width:15px;height:15px}.team-node[aria-pressed=true] .team-node-meta{color:var(--brand)}
+.team-inspector #teamReceipt{font-size:11px;overflow-wrap:anywhere}.team-node small,.team-node span{font-size:11px;color:var(--muted)}
+.team-node[aria-pressed=true]{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand);background:var(--card-raised)}
+.team-node:not(:last-child)::after{content:"→";position:absolute;top:calc(50% - 11px);left:100%;width:18px;text-align:center;color:var(--line-strong);font-size:16px;pointer-events:none}
+.team-node:focus-visible,.team-modes button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.team-inspector{padding:14px 16px;border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px}
+.team-facts{gap:10px 20px}.team-facts dd{font-size:12px;overflow-wrap:anywhere}
+.team-inspector details{margin-top:12px;font-size:12px}.team-inspector pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;max-height:240px;overflow:auto;background:var(--bg);border-radius:8px}
+.team-metadata{margin:10px 0 0;overflow-wrap:anywhere}
+@media(max-width:780px){
+  .team-workspace .team-heading{flex-wrap:wrap}
+  .team-graph{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+  .team-node{min-height:0;grid-template-columns:minmax(0,1fr) auto}
+  .team-node .team-node-meta{grid-column:1/-1}.team-node small{align-self:center}
+  .team-node:not(:last-child)::after{content:"↓";left:15px;top:100%;height:16px;line-height:16px}
+}
+.team-comparison{margin-top:16px;overflow-x:auto}
+.team-comparison table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+.team-comparison caption{text-align:left;font-size:14px;font-weight:700;margin-bottom:6px}
+.team-comparison th,.team-comparison td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+.team-comparison thead th{font-weight:600;color:var(--muted);background:var(--bg)}
+
+.team-project {margin:12px 0;min-width:0}
+.team-project .team-controls {align-items:end;flex-wrap:wrap}
+.team-project #teamAttach {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px}
+.team-project input {min-width:0;max-width:100%}
+.team-project details {margin:14px 0}
+.team-project table {width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}
+.team-project caption {text-align:left;font-weight:650;padding:8px 0}
+.team-project td,.team-project th {padding:8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.team-project td button {white-space:normal;text-align:left}
+.team-digest {display:block;font-family:monospace;overflow-wrap:anywhere;color:var(--muted);max-width:28ch}
+.team-facts dd {overflow-wrap:anywhere}
+#teamForm[hidden],#teamHistory[hidden],#teamResults[hidden],#teamAttachPanel[hidden] {display:none}
+@media(max-width:650px){.team-project table{font-size:11px}.team-project td,.team-project th{padding:5px 3px}.team-project button{font-size:12px}.team-modes{flex-wrap:wrap}}
+.team-controls label[hidden],#teamRerun[hidden] {display:none}
+.team-project summary {cursor:pointer;font-weight:600}
+.team-project .team-caption {align-items:center}
+.team-project #teamOutcomeList table td:nth-child(2) {font-variant-numeric:tabular-nums}

@@ -1,8 +1,13 @@
 # Releases
 
+## Current stable release 2.3.16
+
+[AtMem 2.3.16](../releases/v2.3.16.md) adds independently authorized agent handoffs, correction replay and source-linked engineering outcomes.
+
+
 [AtMem 2.3.16b3 beta](../releases/v2.3.16b3.md) adds opt-in duplicate-read context reduction for the Python SDK.
 
-## Current stable: 2.3.15
+## Previous stable release 2.3.15
 
 [AtMem 2.3.15](../releases/v2.3.15.md) adds an explicitly invoked
 [measured memory-adaptation study](../measured-memory-adaptation.md): objective

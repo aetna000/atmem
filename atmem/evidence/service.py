@@ -387,6 +387,11 @@ class EvidenceService:
         role: EvidenceRole, scope: EvidenceScope,
     ) -> dict[str, str]:
         principal.authorize(EvidenceOperation.GRANT, scope)
+        if role is EvidenceRole.TEAM_HOST:
+            from atmem.agent_team.portable import host_identity
+            host_identity(principal_id)
+            if not scope.workspace_id or scope.run_id:
+                raise ValueError("Team host grants require an explicit workspace and no run binding.")
         if role is EvidenceRole.CONTINUITY_HOST and not scope.run_id:
             raise ValueError("continuity host grants require an explicit workflow run_id")
         if role is EvidenceRole.CONTINUITY_COORDINATOR and (not scope.workspace_id or scope.run_id):
@@ -416,6 +421,11 @@ class EvidenceService:
                 raise PermissionError("evidence deletion requires exact confirmation")
             with self._store() as store:
                 for document in store.documents():
+                    env = document.get("envelope") or {}
+                    if document.get("origin") in {"agent-team-index-v1", "agent-team-deleted-v1"} and env.get("run_id") == run_id:
+                        raise ValueError("Select an execution to delete from the workspace index.")
+                    if document.get("origin") == "agent-team-v1" and env.get("run_id") == run_id:
+                        principal.authorize(EvidenceOperation.DELETE, self._scope_from_envelope(env))
                     if document.get("record_type") == "continuity" and document["workflow"]["workflow_id"] == run_id:
                         actual = EvidenceScope(**document["workflow"]["scope"])
                         principal.authorize(EvidenceOperation.DELETE, EvidenceScope(actual.tenant_id, actual.subject_id, actual.workspace_id, run_id))

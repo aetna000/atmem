@@ -1,0 +1,434 @@
+{
+  "model_digest": "65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b",
+  "cases_sha256": "127c0773f88915f25a8280d2957470755bd24dd119df8632551bb668a5281748",
+  "rows": [
+    {
+      "case_id": "busy",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_09c7a1df9a314510b63bab8878ef1244",
+        "started_at": "2026-11-28T11:06:57.010432+00:00",
+        "question": "What is my Atlas routing code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "single",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_09c7a1df9a314510b63bab8878ef1244.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 26,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 4,
+            "limit": 4,
+            "context_bytes": 403,
+            "source_ids": [
+              "busy-source-5"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_c523ba85fd034c3eb2d657fc7b17a79a",
+            "generation": 5,
+            "context_sha256": "sha256:c71eebdc203d63dcbde9993a3af2bb346f774318710178ab601672ea255a601f",
+            "provenance": [
+              {
+                "record_id": "rec_6ce47ef29b9e42e2bb014bc61f9d9def",
+                "source_id": "busy-source-5",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:bc24d1c5f1974f33ba25a297b756cda6d3144ec42ff7a0310f598c4d46f685f0"
+              }
+            ]
+          },
+          {
+            "step_id": "team_09c7a1df9a314510b63bab8878ef1244.2",
+            "parent_step_id": "team_09c7a1df9a314510b63bab8878ef1244.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 1228,
+            "reason": "Read the scoped evidence directly.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_6ce47ef29b9e42e2bb014bc61f9d9def\" kind=\"atomic_fact\">\nuser Atlas routing code: AX-745 (positive)\nSources: busy-source-5\n</memory>\n</atmem-context>\n",
+            "context_bytes": 403,
+            "input_tokens": 214,
+            "output_tokens": 10,
+            "status": "returned",
+            "quote": "AX-745",
+            "receipt_id": "ctxr_c9dfeae684a6480999d41465cb05eda1",
+            "provenance": [
+              {
+                "record_id": "rec_6ce47ef29b9e42e2bb014bc61f9d9def",
+                "source_id": "busy-source-5",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:bc24d1c5f1974f33ba25a297b756cda6d3144ec42ff7a0310f598c4d46f685f0"
+              }
+            ],
+            "generation": 5,
+            "preparation_id": "prep_c523ba85fd034c3eb2d657fc7b17a79a",
+            "source_ids": [
+              "busy-source-5"
+            ]
+          }
+        ],
+        "model_calls": 1,
+        "input_tokens": 214,
+        "output_tokens": 10,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": "AX-745",
+        "source_ids": [
+          "busy-source-5"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 1262,
+        "typed_rows_read": 9,
+        "unique_typed_records_read": 4,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "busy",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_77a78da2de79459097876d78042885dd",
+        "started_at": "2026-11-28T11:06:58.294175+00:00",
+        "question": "What is my Atlas routing code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "fixed",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_77a78da2de79459097876d78042885dd.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 20,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 4,
+            "limit": 4,
+            "context_bytes": 403,
+            "source_ids": [
+              "busy-source-5"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_9964b0db0e3843459bb4f8259553ea74",
+            "generation": 5,
+            "context_sha256": "sha256:c71eebdc203d63dcbde9993a3af2bb346f774318710178ab601672ea255a601f",
+            "provenance": [
+              {
+                "record_id": "rec_6ce47ef29b9e42e2bb014bc61f9d9def",
+                "source_id": "busy-source-5",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:bc24d1c5f1974f33ba25a297b756cda6d3144ec42ff7a0310f598c4d46f685f0"
+              }
+            ]
+          },
+          {
+            "step_id": "team_77a78da2de79459097876d78042885dd.2",
+            "parent_step_id": "team_77a78da2de79459097876d78042885dd.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 17,
+            "status": "sufficient",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 5,
+            "limit": 16,
+            "context_bytes": 403,
+            "source_ids": [
+              "busy-source-5"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_1251123158ac48f0849fdca716309a0f",
+            "generation": 5,
+            "context_sha256": "sha256:c71eebdc203d63dcbde9993a3af2bb346f774318710178ab601672ea255a601f",
+            "provenance": [
+              {
+                "record_id": "rec_6ce47ef29b9e42e2bb014bc61f9d9def",
+                "source_id": "busy-source-5",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:bc24d1c5f1974f33ba25a297b756cda6d3144ec42ff7a0310f598c4d46f685f0"
+              }
+            ]
+          },
+          {
+            "step_id": "team_77a78da2de79459097876d78042885dd.3",
+            "parent_step_id": "team_77a78da2de79459097876d78042885dd.2",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reviewer",
+            "elapsed_ms": 1797,
+            "reason": "Select a supporting quote from the expanded evidence.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_6ce47ef29b9e42e2bb014bc61f9d9def\" kind=\"atomic_fact\">\nuser Atlas routing code: AX-745 (positive)\nSources: busy-source-5\n</memory>\n</atmem-context>\n",
+            "context_bytes": 403,
+            "input_tokens": 208,
+            "output_tokens": 18,
+            "status": "returned",
+            "quote": "Atlas routing code: AX-745 (positive)",
+            "receipt_id": "ctxr_8bb2052fb95f4b64b296dd38154fca18",
+            "provenance": [
+              {
+                "record_id": "rec_6ce47ef29b9e42e2bb014bc61f9d9def",
+                "source_id": "busy-source-5",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:bc24d1c5f1974f33ba25a297b756cda6d3144ec42ff7a0310f598c4d46f685f0"
+              }
+            ],
+            "generation": 5,
+            "preparation_id": "prep_1251123158ac48f0849fdca716309a0f",
+            "source_ids": [
+              "busy-source-5"
+            ]
+          },
+          {
+            "step_id": "team_77a78da2de79459097876d78042885dd.4",
+            "parent_step_id": "team_77a78da2de79459097876d78042885dd.3",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 935,
+            "reason": "Read the reviewed quote.",
+            "evidence": "Atlas routing code: AX-745 (positive)",
+            "context_bytes": 37,
+            "input_tokens": 94,
+            "output_tokens": 11,
+            "status": "returned",
+            "quote": "AX-745",
+            "provenance": [
+              {
+                "record_id": "rec_6ce47ef29b9e42e2bb014bc61f9d9def",
+                "source_id": "busy-source-5",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:bc24d1c5f1974f33ba25a297b756cda6d3144ec42ff7a0310f598c4d46f685f0"
+              }
+            ],
+            "generation": 5,
+            "preparation_id": "prep_1251123158ac48f0849fdca716309a0f",
+            "source_ids": [
+              "busy-source-5"
+            ]
+          }
+        ],
+        "model_calls": 2,
+        "input_tokens": 302,
+        "output_tokens": 29,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": "AX-745",
+        "source_ids": [
+          "busy-source-5"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 2776,
+        "typed_rows_read": 23,
+        "unique_typed_records_read": 5,
+        "raw_source_fetches": 0
+      }
+    },
+    {
+      "case_id": "busy",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_5eac6306bc6c4fe7a09ca52d7acebbd9",
+        "started_at": "2026-11-28T11:07:01.101311+00:00",
+        "question": "What is my Atlas routing code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "adaptive",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "step_id": "team_5eac6306bc6c4fe7a09ca52d7acebbd9.1",
+            "parent_step_id": null,
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "lookup",
+            "elapsed_ms": 45,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 4,
+            "limit": 4,
+            "context_bytes": 403,
+            "source_ids": [
+              "busy-source-5"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_17b26e380c7a4a67a9589a8df5506609",
+            "generation": 5,
+            "context_sha256": "sha256:c71eebdc203d63dcbde9993a3af2bb346f774318710178ab601672ea255a601f",
+            "provenance": [
+              {
+                "record_id": "rec_6ce47ef29b9e42e2bb014bc61f9d9def",
+                "source_id": "busy-source-5",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:bc24d1c5f1974f33ba25a297b756cda6d3144ec42ff7a0310f598c4d46f685f0"
+              }
+            ]
+          },
+          {
+            "step_id": "team_5eac6306bc6c4fe7a09ca52d7acebbd9.2",
+            "parent_step_id": "team_5eac6306bc6c4fe7a09ca52d7acebbd9.1",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "expanded_lookup",
+            "elapsed_ms": 24,
+            "status": "sufficient",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 5,
+            "limit": 16,
+            "context_bytes": 403,
+            "source_ids": [
+              "busy-source-5"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_f028bf020a614ee09891e5601617e4e7",
+            "generation": 5,
+            "context_sha256": "sha256:c71eebdc203d63dcbde9993a3af2bb346f774318710178ab601672ea255a601f",
+            "provenance": [
+              {
+                "record_id": "rec_6ce47ef29b9e42e2bb014bc61f9d9def",
+                "source_id": "busy-source-5",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:bc24d1c5f1974f33ba25a297b756cda6d3144ec42ff7a0310f598c4d46f685f0"
+              }
+            ]
+          },
+          {
+            "step_id": "team_5eac6306bc6c4fe7a09ca52d7acebbd9.3",
+            "parent_step_id": "team_5eac6306bc6c4fe7a09ca52d7acebbd9.2",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reviewer",
+            "elapsed_ms": 1048,
+            "reason": "Select a supporting quote from the expanded evidence.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_6ce47ef29b9e42e2bb014bc61f9d9def\" kind=\"atomic_fact\">\nuser Atlas routing code: AX-745 (positive)\nSources: busy-source-5\n</memory>\n</atmem-context>\n",
+            "context_bytes": 403,
+            "input_tokens": 208,
+            "output_tokens": 18,
+            "status": "returned",
+            "quote": "Atlas routing code: AX-745 (positive)",
+            "receipt_id": "ctxr_5edcdf0eeb364a8f8d28c5eaa14dc60d",
+            "provenance": [
+              {
+                "record_id": "rec_6ce47ef29b9e42e2bb014bc61f9d9def",
+                "source_id": "busy-source-5",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:bc24d1c5f1974f33ba25a297b756cda6d3144ec42ff7a0310f598c4d46f685f0"
+              }
+            ],
+            "generation": 5,
+            "preparation_id": "prep_f028bf020a614ee09891e5601617e4e7",
+            "source_ids": [
+              "busy-source-5"
+            ]
+          },
+          {
+            "step_id": "team_5eac6306bc6c4fe7a09ca52d7acebbd9.4",
+            "parent_step_id": "team_5eac6306bc6c4fe7a09ca52d7acebbd9.3",
+            "host": "atmem-sdk",
+            "agent_id": "team",
+            "role": "reader",
+            "elapsed_ms": 731,
+            "reason": "Read the reviewed quote.",
+            "evidence": "Atlas routing code: AX-745 (positive)",
+            "context_bytes": 37,
+            "input_tokens": 94,
+            "output_tokens": 11,
+            "status": "returned",
+            "quote": "AX-745",
+            "provenance": [
+              {
+                "record_id": "rec_6ce47ef29b9e42e2bb014bc61f9d9def",
+                "source_id": "busy-source-5",
+                "start_offset": 0,
+                "end_offset": 32,
+                "excerpt_sha256": "sha256:bc24d1c5f1974f33ba25a297b756cda6d3144ec42ff7a0310f598c4d46f685f0"
+              }
+            ],
+            "generation": 5,
+            "preparation_id": "prep_f028bf020a614ee09891e5601617e4e7",
+            "source_ids": [
+              "busy-source-5"
+            ]
+          }
+        ],
+        "model_calls": 2,
+        "input_tokens": 302,
+        "output_tokens": 29,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": "AX-745",
+        "source_ids": [
+          "busy-source-5"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 1855,
+        "typed_rows_read": 23,
+        "unique_typed_records_read": 5,
+        "raw_source_fetches": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "host": "chatgpt",
+  "transport": "OAuth 2 PKCE + streamable HTTP MCP",
+  "authority": "isolated Firebase Auth and Firestore emulators",
+  "tools": [
+    "team_receive",
+    "team_complete"
+  ],
+  "run_id": "team_be4674d8cce21871fc8cae01fec95ef0",
+  "foreign_account": "denied",
+  "read_only_grant": "denied",
+  "outcome": "answered",
+  "live_chatgpt_ui": false
+}

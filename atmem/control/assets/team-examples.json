@@ -1,0 +1,1293 @@
+{
+  "model_digest": "65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b",
+  "rows": [
+    {
+      "case_id": "direct",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_7a565eb67cdc4e92ae50d68c79e7a519",
+        "started_at": "2026-11-28T10:33:43.163613+00:00",
+        "question": "What is my favorite city?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "single",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 131,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 400,
+            "source_ids": [
+              "direct-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_ffa99ed469d546f9b150c49c466a5311"
+          },
+          {
+            "role": "reader",
+            "elapsed_ms": 7457,
+            "reason": "Read the scoped evidence directly.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_8019c37770eb414bafe92e66b7bfb356\" kind=\"atomic_fact\">\nuser favorite city: Lisbon (positive)\nSources: direct-source-1\n</memory>\n</atmem-context>\n",
+            "context_bytes": 400,
+            "input_tokens": 210,
+            "output_tokens": 9,
+            "status": "returned",
+            "quote": "Lisbon",
+            "receipt_id": "ctxr_5e333c827a19408baa4a5c925e5c96e1",
+            "source_ids": [
+              "direct-source-1"
+            ]
+          }
+        ],
+        "model_calls": 1,
+        "input_tokens": 210,
+        "output_tokens": 9,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": "Lisbon",
+        "source_ids": [
+          "direct-source-1"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 7654
+      }
+    },
+    {
+      "case_id": "direct",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_ed92a301ed1649d681ce1e580dd73a9e",
+        "started_at": "2026-11-28T10:33:51.003414+00:00",
+        "question": "What is my favorite city?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "fixed",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 41,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 400,
+            "source_ids": [
+              "direct-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_1a77d508d77643d9baaec90c13d4eb1f"
+          },
+          {
+            "role": "expanded_lookup",
+            "elapsed_ms": 37,
+            "status": "sufficient",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 1,
+            "limit": 16,
+            "context_bytes": 400,
+            "source_ids": [
+              "direct-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_f3b6b708799f436ab47b4fd52d0993c9"
+          },
+          {
+            "role": "reviewer",
+            "elapsed_ms": 1519,
+            "reason": "Select a supporting quote from the expanded evidence.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_8019c37770eb414bafe92e66b7bfb356\" kind=\"atomic_fact\">\nuser favorite city: Lisbon (positive)\nSources: direct-source-1\n</memory>\n</atmem-context>\n",
+            "context_bytes": 400,
+            "input_tokens": 204,
+            "output_tokens": 9,
+            "status": "returned",
+            "quote": "Lisbon",
+            "receipt_id": "ctxr_69dba7f484e24f0582ebbaaeb7e6c41b",
+            "source_ids": [
+              "direct-source-1"
+            ]
+          },
+          {
+            "role": "reader",
+            "elapsed_ms": 737,
+            "reason": "Read the reviewed quote.",
+            "evidence": "Lisbon",
+            "context_bytes": 6,
+            "input_tokens": 84,
+            "output_tokens": 9,
+            "status": "returned",
+            "quote": "Lisbon",
+            "source_ids": [
+              "direct-source-1"
+            ]
+          }
+        ],
+        "model_calls": 2,
+        "input_tokens": 288,
+        "output_tokens": 18,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": "Lisbon",
+        "source_ids": [
+          "direct-source-1"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 2349
+      }
+    },
+    {
+      "case_id": "direct",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_7481410e77064fd08dfe63c73d4dd27e",
+        "started_at": "2026-11-28T10:33:53.404754+00:00",
+        "question": "What is my favorite city?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "adaptive",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 276,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 400,
+            "source_ids": [
+              "direct-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_9f22e36e40c344f290dd945539f9b53a"
+          },
+          {
+            "role": "reader",
+            "elapsed_ms": 1133,
+            "reason": "Read the scoped evidence directly.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"exact_fact\" sufficiency=\"sufficient\">\nRequired evidence: subject, relation, value\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_8019c37770eb414bafe92e66b7bfb356\" kind=\"atomic_fact\">\nuser favorite city: Lisbon (positive)\nSources: direct-source-1\n</memory>\n</atmem-context>\n",
+            "context_bytes": 400,
+            "input_tokens": 210,
+            "output_tokens": 9,
+            "status": "returned",
+            "quote": "Lisbon",
+            "receipt_id": "ctxr_91019fc6ca6a4312bcb1e1676e3e7d04",
+            "source_ids": [
+              "direct-source-1"
+            ]
+          }
+        ],
+        "model_calls": 1,
+        "input_tokens": 210,
+        "output_tokens": 9,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": "Lisbon",
+        "source_ids": [
+          "direct-source-1"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 1433
+      }
+    },
+    {
+      "case_id": "corrected",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_8572a805cd6743fa9e12098976430709",
+        "started_at": "2026-11-28T10:33:57.097202+00:00",
+        "question": "What is my current favorite food?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "fixed",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 64,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 424,
+            "source_ids": [
+              "corrected-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_2a780b7e460f4ff79469222de105f564"
+          },
+          {
+            "role": "expanded_lookup",
+            "elapsed_ms": 283,
+            "status": "sufficient",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 1,
+            "limit": 16,
+            "context_bytes": 424,
+            "source_ids": [
+              "corrected-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_99b22647b8cb4dcaac6c6cf4dd4ff460"
+          },
+          {
+            "role": "reviewer",
+            "elapsed_ms": 2168,
+            "reason": "Select a supporting quote from the expanded evidence.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"current_state\" sufficiency=\"sufficient\">\nRequired evidence: entity, relation, current_value, validity\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_9da7625720ea4a2e852c5cb9fa1085c4\" kind=\"atomic_fact\">\nuser favorite food: polenta (positive)\nSources: corrected-source-2\n</memory>\n</atmem-context>\n",
+            "context_bytes": 424,
+            "input_tokens": 209,
+            "output_tokens": 8,
+            "status": "returned",
+            "quote": "polenta",
+            "receipt_id": "ctxr_01645f126b2c4f9abcdd18273c93b7fa",
+            "source_ids": [
+              "corrected-source-2"
+            ]
+          },
+          {
+            "role": "reader",
+            "elapsed_ms": 909,
+            "reason": "Read the reviewed quote.",
+            "evidence": "polenta",
+            "context_bytes": 7,
+            "input_tokens": 84,
+            "output_tokens": 11,
+            "status": "returned",
+            "quote": "polenta",
+            "source_ids": [
+              "corrected-source-2"
+            ]
+          }
+        ],
+        "model_calls": 2,
+        "input_tokens": 293,
+        "output_tokens": 19,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": "polenta",
+        "source_ids": [
+          "corrected-source-2"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 3448
+      }
+    },
+    {
+      "case_id": "corrected",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_f76b1d0cb4b2465f806d6604fcf62bbd",
+        "started_at": "2026-11-28T10:34:00.583252+00:00",
+        "question": "What is my current favorite food?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "adaptive",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 56,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 424,
+            "source_ids": [
+              "corrected-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_4d728b881e794f548032089167224deb"
+          },
+          {
+            "role": "reader",
+            "elapsed_ms": 1091,
+            "reason": "Read the scoped evidence directly.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"current_state\" sufficiency=\"sufficient\">\nRequired evidence: entity, relation, current_value, validity\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_9da7625720ea4a2e852c5cb9fa1085c4\" kind=\"atomic_fact\">\nuser favorite food: polenta (positive)\nSources: corrected-source-2\n</memory>\n</atmem-context>\n",
+            "context_bytes": 424,
+            "input_tokens": 215,
+            "output_tokens": 7,
+            "status": "returned",
+            "quote": "polenta",
+            "receipt_id": "ctxr_4d9e7fdfc6954b01bf20ef2ba673ee7b",
+            "source_ids": [
+              "corrected-source-2"
+            ]
+          }
+        ],
+        "model_calls": 1,
+        "input_tokens": 215,
+        "output_tokens": 7,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": "polenta",
+        "source_ids": [
+          "corrected-source-2"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 1164
+      }
+    },
+    {
+      "case_id": "corrected",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_2ba0b3d38b2c499db72ab4278a842d88",
+        "started_at": "2026-11-28T10:34:01.795700+00:00",
+        "question": "What is my current favorite food?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "single",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 198,
+            "status": "sufficient",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 424,
+            "source_ids": [
+              "corrected-source-2"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "required_slots_covered"
+            ],
+            "preparation_id": "prep_944bd8362f5a443dbc49841f2b968c53"
+          },
+          {
+            "role": "reader",
+            "elapsed_ms": 408,
+            "reason": "Read the scoped evidence directly.",
+            "evidence": "<atmem-context format=\"v2\">\n<need type=\"current_state\" sufficiency=\"sufficient\">\nRequired evidence: entity, relation, current_value, validity\n</need>\n<evidence-policy>\n- Use only observed evidence; do not substitute common product practice.\n</evidence-policy>\n<memory id=\"rec_9da7625720ea4a2e852c5cb9fa1085c4\" kind=\"atomic_fact\">\nuser favorite food: polenta (positive)\nSources: corrected-source-2\n</memory>\n</atmem-context>\n",
+            "context_bytes": 424,
+            "input_tokens": 215,
+            "output_tokens": 7,
+            "status": "returned",
+            "quote": "polenta",
+            "receipt_id": "ctxr_6d46fc3c4ada4910930744123e14b140",
+            "source_ids": [
+              "corrected-source-2"
+            ]
+          }
+        ],
+        "model_calls": 1,
+        "input_tokens": 215,
+        "output_tokens": 7,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": "polenta",
+        "source_ids": [
+          "corrected-source-2"
+        ],
+        "outcome": "answered",
+        "reason": "The answer is an exact quote from scoped supporting evidence.",
+        "elapsed_ms": 653
+      }
+    },
+    {
+      "case_id": "busy",
+      "grade": {
+        "correct": false,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_caa6bf2ec18d4e0cab76432c31aed458",
+        "started_at": "2026-11-28T10:34:03.242551+00:00",
+        "question": "What is my Atlas routing code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "adaptive",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 26,
+            "status": "partial",
+            "reason": "Scoped memory lookup.",
+            "candidates": 4,
+            "limit": 4,
+            "context_bytes": 882,
+            "source_ids": [
+              "busy-source-5",
+              "busy-source-1",
+              "busy-source-4",
+              "busy-source-2"
+            ],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "authorized_lexical_fallback_unverified"
+            ],
+            "preparation_id": "prep_f8a3c180e49a45938f5613a59c373f8a"
+          },
+          {
+            "role": "expanded_lookup",
+            "elapsed_ms": 72,
+            "status": "partial",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 5,
+            "limit": 16,
+            "context_bytes": 1027,
+            "source_ids": [
+              "busy-source-5",
+              "busy-source-1",
+              "busy-source-4",
+              "busy-source-2",
+              "busy-source-3"
+            ],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "authorized_lexical_fallback_unverified"
+            ],
+            "preparation_id": "prep_48fba43bc74b40abb5845d76b33a800a"
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is partial.",
+        "elapsed_ms": 98
+      }
+    },
+    {
+      "case_id": "busy",
+      "grade": {
+        "correct": false,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_d1f58e14eb354eff94f90f3fc8834021",
+        "started_at": "2026-11-28T10:34:03.373996+00:00",
+        "question": "What is my Atlas routing code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "single",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 28,
+            "status": "partial",
+            "reason": "Scoped memory lookup.",
+            "candidates": 4,
+            "limit": 4,
+            "context_bytes": 882,
+            "source_ids": [
+              "busy-source-5",
+              "busy-source-1",
+              "busy-source-4",
+              "busy-source-2"
+            ],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "authorized_lexical_fallback_unverified"
+            ],
+            "preparation_id": "prep_fa1d23c2714146098026992019ec7499"
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is partial.",
+        "elapsed_ms": 28
+      }
+    },
+    {
+      "case_id": "busy",
+      "grade": {
+        "correct": false,
+        "stale": false,
+        "correct_abstention": false
+      },
+      "run": {
+        "run_id": "team_d28d94935a584be0a2e6550333ec25de",
+        "started_at": "2026-11-28T10:34:03.424269+00:00",
+        "question": "What is my Atlas routing code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "fixed",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 458,
+            "status": "partial",
+            "reason": "Scoped memory lookup.",
+            "candidates": 4,
+            "limit": 4,
+            "context_bytes": 882,
+            "source_ids": [
+              "busy-source-5",
+              "busy-source-1",
+              "busy-source-4",
+              "busy-source-2"
+            ],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "authorized_lexical_fallback_unverified"
+            ],
+            "preparation_id": "prep_978b630e9c8a41b09e2dfbb77fed6621"
+          },
+          {
+            "role": "expanded_lookup",
+            "elapsed_ms": 228,
+            "status": "partial",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 5,
+            "limit": 16,
+            "context_bytes": 1027,
+            "source_ids": [
+              "busy-source-5",
+              "busy-source-1",
+              "busy-source-4",
+              "busy-source-2",
+              "busy-source-3"
+            ],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "authorized_lexical_fallback_unverified"
+            ],
+            "preparation_id": "prep_57aaac8ac12846498d8111923b871082"
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is partial.",
+        "elapsed_ms": 686
+      }
+    },
+    {
+      "case_id": "expired",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_e21f6f8c698241d9aea7efee091dd606",
+        "started_at": "2026-11-28T10:34:05.045014+00:00",
+        "question": "What is my favorite city?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "single",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 77,
+            "status": "stale",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 394,
+            "source_ids": [
+              "expired-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "only_expired_evidence"
+            ],
+            "preparation_id": "prep_63a9c1ba41954f4b8f905133c4e1911d"
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is stale.",
+        "elapsed_ms": 78
+      }
+    },
+    {
+      "case_id": "expired",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_9e7c7bdaf6104c938470872e1b351300",
+        "started_at": "2026-11-28T10:34:05.169741+00:00",
+        "question": "What is my favorite city?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "fixed",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 63,
+            "status": "stale",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 394,
+            "source_ids": [
+              "expired-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "only_expired_evidence"
+            ],
+            "preparation_id": "prep_4ba658b8a619494bba5acab267659f09"
+          },
+          {
+            "role": "expanded_lookup",
+            "elapsed_ms": 30,
+            "status": "stale",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 1,
+            "limit": 16,
+            "context_bytes": 394,
+            "source_ids": [
+              "expired-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "only_expired_evidence"
+            ],
+            "preparation_id": "prep_4737246cbc744b538976f94887ad1bbc"
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is stale.",
+        "elapsed_ms": 93
+      }
+    },
+    {
+      "case_id": "expired",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_b83564bc7dff4a92a2d7d434096a7179",
+        "started_at": "2026-11-28T10:34:05.446092+00:00",
+        "question": "What is my favorite city?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "adaptive",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 151,
+            "status": "stale",
+            "reason": "Scoped memory lookup.",
+            "candidates": 1,
+            "limit": 4,
+            "context_bytes": 394,
+            "source_ids": [
+              "expired-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "only_expired_evidence"
+            ],
+            "preparation_id": "prep_4eb489cbf8234faf9fc21af8f51ca9e7"
+          },
+          {
+            "role": "expanded_lookup",
+            "elapsed_ms": 49,
+            "status": "stale",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 1,
+            "limit": 16,
+            "context_bytes": 394,
+            "source_ids": [
+              "expired-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "only_expired_evidence"
+            ],
+            "preparation_id": "prep_feb8581da22c478f925d28cf55fd78b5"
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is stale.",
+        "elapsed_ms": 201
+      }
+    },
+    {
+      "case_id": "conflict",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_eacf6d41982448d0855d1aa75391066e",
+        "started_at": "2026-11-28T10:34:06.284391+00:00",
+        "question": "What is my favorite city?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "fixed",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 46,
+            "status": "contradictory",
+            "reason": "Scoped memory lookup.",
+            "candidates": 2,
+            "limit": 4,
+            "context_bytes": 547,
+            "source_ids": [
+              "conflict-source-2",
+              "conflict-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "conflicting_current_evidence"
+            ],
+            "preparation_id": "prep_4a60002ef8cb4c179a7b753689426aab"
+          },
+          {
+            "role": "expanded_lookup",
+            "elapsed_ms": 30,
+            "status": "contradictory",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 2,
+            "limit": 16,
+            "context_bytes": 547,
+            "source_ids": [
+              "conflict-source-2",
+              "conflict-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "conflicting_current_evidence"
+            ],
+            "preparation_id": "prep_6e38c3e4c477451eb7fac6d334942d5e"
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is contradictory.",
+        "elapsed_ms": 77
+      }
+    },
+    {
+      "case_id": "conflict",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_8fa2164ddcd14fb6bea4f9ca11add261",
+        "started_at": "2026-11-28T10:34:06.390523+00:00",
+        "question": "What is my favorite city?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "adaptive",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 27,
+            "status": "contradictory",
+            "reason": "Scoped memory lookup.",
+            "candidates": 2,
+            "limit": 4,
+            "context_bytes": 547,
+            "source_ids": [
+              "conflict-source-2",
+              "conflict-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "conflicting_current_evidence"
+            ],
+            "preparation_id": "prep_3451e5e6dfe44370ad58642a73e17e96"
+          },
+          {
+            "role": "expanded_lookup",
+            "elapsed_ms": 174,
+            "status": "contradictory",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 2,
+            "limit": 16,
+            "context_bytes": 547,
+            "source_ids": [
+              "conflict-source-2",
+              "conflict-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "conflicting_current_evidence"
+            ],
+            "preparation_id": "prep_5bb354a102bf4421802029c08e0ea239"
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is contradictory.",
+        "elapsed_ms": 201
+      }
+    },
+    {
+      "case_id": "conflict",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_b09ce0fc29f34efa857fa8eb0e9a6cd2",
+        "started_at": "2026-11-28T10:34:06.608795+00:00",
+        "question": "What is my favorite city?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "single",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 141,
+            "status": "contradictory",
+            "reason": "Scoped memory lookup.",
+            "candidates": 2,
+            "limit": 4,
+            "context_bytes": 547,
+            "source_ids": [
+              "conflict-source-2",
+              "conflict-source-1"
+            ],
+            "missing": [],
+            "reason_codes": [
+              "conflicting_current_evidence"
+            ],
+            "preparation_id": "prep_8dc3eb1f554f41c1818b7d78a7851fc8"
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is contradictory.",
+        "elapsed_ms": 141
+      }
+    },
+    {
+      "case_id": "missing",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_9797f18dcffc473eb0874b630fcaac4f",
+        "started_at": "2026-11-28T10:34:07.211297+00:00",
+        "question": "What is my routing code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "adaptive",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 11,
+            "status": "unsupported",
+            "reason": "Scoped memory lookup.",
+            "candidates": 0,
+            "limit": 4,
+            "context_bytes": 0,
+            "source_ids": [],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "no_answer_bearing_typed_evidence"
+            ],
+            "preparation_id": "prep_be11dbc52da641f395ab3961979810ce"
+          },
+          {
+            "role": "expanded_lookup",
+            "elapsed_ms": 12,
+            "status": "unsupported",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 0,
+            "limit": 16,
+            "context_bytes": 0,
+            "source_ids": [],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "no_answer_bearing_typed_evidence"
+            ],
+            "preparation_id": "prep_afb6ed795c7c488f9f279d0e57d3e800"
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is unsupported.",
+        "elapsed_ms": 23
+      }
+    },
+    {
+      "case_id": "missing",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_df8e86c71e5a4ce4a612f03527a7248e",
+        "started_at": "2026-11-28T10:34:07.254656+00:00",
+        "question": "What is my routing code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "single",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 13,
+            "status": "unsupported",
+            "reason": "Scoped memory lookup.",
+            "candidates": 0,
+            "limit": 4,
+            "context_bytes": 0,
+            "source_ids": [],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "no_answer_bearing_typed_evidence"
+            ],
+            "preparation_id": "prep_c7f8cdb09d204767809de8377a6ce7ec"
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 1,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is unsupported.",
+        "elapsed_ms": 14
+      }
+    },
+    {
+      "case_id": "missing",
+      "grade": {
+        "correct": true,
+        "stale": false,
+        "correct_abstention": true
+      },
+      "run": {
+        "run_id": "team_bcaff654c4ee4689bf7ed338d0df45d8",
+        "started_at": "2026-11-28T10:34:07.287886+00:00",
+        "question": "What is my routing code?",
+        "scope": {
+          "subject_id": "pilot",
+          "agent_id": "team",
+          "workspace_id": "pilot-workspace",
+          "format": "atmem-authority-scope-v1"
+        },
+        "policy": "fixed",
+        "model": "qwen2.5:1.5b",
+        "max_calls": 2,
+        "context_byte_limit": 4096,
+        "steps": [
+          {
+            "role": "lookup",
+            "elapsed_ms": 15,
+            "status": "unsupported",
+            "reason": "Scoped memory lookup.",
+            "candidates": 0,
+            "limit": 4,
+            "context_bytes": 0,
+            "source_ids": [],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "no_answer_bearing_typed_evidence"
+            ],
+            "preparation_id": "prep_aa4f94f811224514b9165e57abc89616"
+          },
+          {
+            "role": "expanded_lookup",
+            "elapsed_ms": 30,
+            "status": "unsupported",
+            "reason": "Expanded search in the same workspace.",
+            "candidates": 0,
+            "limit": 16,
+            "context_bytes": 0,
+            "source_ids": [],
+            "missing": [
+              "subject",
+              "relation",
+              "value"
+            ],
+            "reason_codes": [
+              "no_answer_bearing_typed_evidence"
+            ],
+            "preparation_id": "prep_cd279e07db524c618a349298f6eab2df"
+          }
+        ],
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usage_complete": true,
+        "lookups": 2,
+        "answer": null,
+        "source_ids": [],
+        "outcome": "abstained",
+        "reason": "Scoped evidence is unsupported.",
+        "elapsed_ms": 46
+      }
+    }
+  ]
+}
